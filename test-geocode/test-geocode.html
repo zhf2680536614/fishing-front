@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高德地图地理编码测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .test-result {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0069d9;
+        }
+    </style>
+</head>
+<body>
+    <h1>高德地图地理编码测试</h1>
+    <p>测试地址：重庆市渝北区</p>
+    <button onclick="testGeocode()">开始测试</button>
+    <div id="test-result" class="test-result"></div>
+
+    <!-- 引入高德地图 SDK -->
+    <script type="text/javascript">
+        // 高德地图 API Key
+        const AMapKey = '46b49745a93edc902705272a15fb576b';
+        // 高德地图安全密钥（jscode）- 请从高德地图开放平台获取
+        const AMapSecret = '';
+        
+        // 设置高德地图安全密钥配置
+        if (AMapSecret) {
+            window._AMapSecurityConfig = {
+                securityJsCode: AMapSecret,
+            };
+            console.log('高德地图安全密钥已配置');
+        } else {
+            console.log('警告：未配置高德地图安全密钥，地理编码可能无法正常工作');
+        }
+
+        // 动态加载高德地图 SDK
+        function loadAMap() {
+            return new Promise((resolve, reject) => {
+                if (window.AMap) {
+                    resolve(window.AMap);
+                } else {
+                    const script = document.createElement('script');
+                    script.src = `https://webapi.amap.com/maps?v=2.0&key=${AMapKey}&plugin=AMap.Geocoder`;
+                    script.type = 'text/javascript';
+                    script.async = true;
+                    script.defer = true;
+                    script.onload = () => {
+                        if (window.AMap) {
+                            resolve(window.AMap);
+                        } else {
+                            reject(new Error('高德地图 SDK 加载失败'));
+                        }
+                    };
+                    script.onerror = () => {
+                        reject(new Error('高德地图 SDK 加载失败'));
+                    };
+                    document.head.appendChild(script);
+                }
+            });
+        }
+
+        // 测试地理编码
+        async function testGeocode() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '<p>正在测试地理编码...</p>';
+
+            try {
+                // 加载高德地图 SDK
+                const AMap = await loadAMap();
+                resultDiv.innerHTML += '<p class="success">高德地图 SDK 加载成功</p>';
+
+                // 测试正向地理编码（地址转经纬度）
+                resultDiv.innerHTML += '<h3>测试正向地理编码（地址转经纬度）</h3>';
+                await testForwardGeocode(AMap);
+
+                // 测试逆向地理编码（经纬度转地址）
+                resultDiv.innerHTML += '<h3>测试逆向地理编码（经纬度转地址）</h3>';
+                await testReverseGeocode(AMap);
+
+                resultDiv.innerHTML += '<p class="success">测试完成</p>';
+            } catch (error) {
+                resultDiv.innerHTML += `<p class="error">测试失败：${error.message}</p>`;
+                console.error('测试失败:', error);
+            }
+        }
+
+        // 测试正向地理编码
+        function testForwardGeocode(AMap) {
+            return new Promise((resolve, reject) => {
+                const resultDiv = document.getElementById('test-result');
+                resultDiv.innerHTML += '<p>开始测试正向地理编码...</p>';
+                
+                if (typeof AMap.plugin === 'function') {
+                    resultDiv.innerHTML += '<p>AMap.plugin 是函数，开始加载 AMap.Geocoder...</p>';
+                    AMap.plugin('AMap.Geocoder', function () {
+                        resultDiv.innerHTML += '<p>AMap.Geocoder 加载成功，开始创建地理编码器...</p>';
+                        try {
+                            const geocoder = new AMap.Geocoder({
+                                key: AMapKey
+                            });
+                            resultDiv.innerHTML += '<p>地理编码器创建成功，开始调用 getLocation...</p>';
+                            
+                            const address = '重庆市渝北区';
+                            resultDiv.innerHTML += `<p>地址：${address}</p>`;
+                            resultDiv.innerHTML += `<p>API Key：${AMapKey}</p>`;
+                            
+                            // 设置超时处理
+                            const timeoutId = setTimeout(() => {
+                                resultDiv.innerHTML += '<p class="error">正向地理编码请求超时</p>';
+                                reject(new Error('正向地理编码请求超时'));
+                            }, 10000); // 10秒超时
+                            
+                            geocoder.getLocation(address, function (status, result) {
+                                clearTimeout(timeoutId); // 清除超时
+                                resultDiv.innerHTML += `<p>正向地理编码回调：status=${status}, result=${JSON.stringify(result)}</p>`;
+                                if (status === 'complete' && result.info === 'OK') {
+                                    const location = result.geocodes[0].location;
+                                    resultDiv.innerHTML += `<p class="success">正向地理编码成功：${address} -> 经度: ${location.lng}, 纬度: ${location.lat}</p>`;
+                                    resolve();
+                                } else {
+                                    resultDiv.innerHTML += `<p class="error">正向地理编码失败：${result.info}</p>`;
+                                    // 分析失败原因
+                                    if (result.info === 'USERKEY_PLAT_NOMATCH') {
+                                        resultDiv.innerHTML += '<p class="error">API Key 平台不匹配，请确保使用 Web 端 API Key</p>';
+                                    } else if (result.info === 'INVALID_USER_KEY') {
+                                        resultDiv.innerHTML += '<p class="error">API Key 无效，请检查 API Key 是否正确</p>';
+                                    } else if (result.info === 'OVER_QUERY_LIMIT') {
+                                        resultDiv.innerHTML += '<p class="error">API 调用次数超限，请检查 API Key 的配额</p>';
+                                    }
+                                    reject(new Error(`正向地理编码失败: ${result.info}`));
+                                }
+                            });
+                        } catch (error) {
+                            resultDiv.innerHTML += `<p class="error">创建地理编码器时出错：${error.message}</p>`;
+                            reject(error);
+                        }
+                    });
+                } else {
+                    resultDiv.innerHTML += '<p class="error">AMap.plugin 不是函数</p>';
+                    reject(new Error('AMap.plugin 不是函数'));
+                }
+            });
+        }
+
+        // 测试逆向地理编码
+        function testReverseGeocode(AMap) {
+            return new Promise((resolve, reject) => {
+                if (typeof AMap.plugin === 'function') {
+                    AMap.plugin('AMap.Geocoder', function () {
+                        try {
+                            const geocoder = new AMap.Geocoder({
+                                key: AMapKey
+                            });
+                            
+                            // 重庆市渝北区的经纬度
+                            const longitude = 106.554649;
+                            const latitude = 29.613234;
+                            
+                            geocoder.getAddress([longitude, latitude], function (status, result) {
+                                const resultDiv = document.getElementById('test-result');
+                                if (status === 'complete' && result.info === 'OK') {
+                                    const address = result.regeocode.formattedAddress;
+                                    resultDiv.innerHTML += `<p class="success">逆向地理编码成功：经度: ${longitude}, 纬度: ${latitude} -> ${address}</p>`;
+                                    resolve();
+                                } else {
+                                    resultDiv.innerHTML += `<p class="error">逆向地理编码失败：${result.info}</p>`;
+                                    reject(new Error(`逆向地理编码失败: ${result.info}`));
+                                }
+                            });
+                        } catch (error) {
+                            reject(error);
+                        }
+                    });
+                } else {
+                    reject(new Error('AMap.plugin 不是函数'));
+                }
+            });
+        }
+    </script>
+</body>
+</html>
