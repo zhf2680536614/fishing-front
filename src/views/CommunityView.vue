@@ -1,5 +1,5 @@
 <template>
-  <div class="community-page">
+  <div class="community-page" ref="pageRef">
     <!-- 页面标题 -->
     <div class="page-header">
       <div class="container">
@@ -87,7 +87,7 @@
               <!-- 查看更多 -->
               <div class="load-more-section">
                 <el-button 
-                  v-if="hasMore" 
+                  v-if="hasMorePosts" 
                   @click="loadMorePosts" 
                   :loading="loadingMore"
                   class="load-more-btn"
@@ -179,7 +179,7 @@
                 <!-- 查看更多 -->
                 <div class="load-more-section">
                   <el-button 
-                    v-if="hasMore" 
+                    v-if="hasMoreAirForce" 
                     @click="loadMoreAirForcePosts" 
                     :loading="loadingMore"
                     class="load-more-btn"
@@ -197,12 +197,24 @@
         </el-tabs>
       </div>
     </div>
+
+    <!-- 回到顶部按钮 -->
+    <transition name="fade">
+      <div 
+        v-show="showBackToTop" 
+        class="back-to-top" 
+        @click="scrollToTop"
+        title="回到顶部"
+      >
+        <el-icon><ArrowUp /></el-icon>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { View, Star, ChatLineSquare, Trophy, Warning, Cpu, Plus, ArrowRight, ArrowDown } from '@element-plus/icons-vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { View, Star, ChatLineSquare, Trophy, Warning, Cpu, Plus, ArrowRight, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getPostList, toggleLike, incrementView } from '@/api/post'
 import { getAirForceStats, getAirForcePosts } from '@/api/airforce'
@@ -248,7 +260,8 @@ const totalAirForce = ref(0)
 const airForceRate = ref(0)
 const loading = ref(false)
 const loadingMore = ref(false)
-const hasMore = ref(true)
+const hasMorePosts = ref(true)
+const hasMoreAirForce = ref(true)
 
 // 帖子数据
 const posts = ref([])
@@ -256,6 +269,24 @@ const posts = ref([])
 // 空军动态数据
 const airForcePosts = ref([])
 const airForcePageNum = ref(1)
+
+// 回到顶部相关
+const pageRef = ref(null)
+const showBackToTop = ref(false)
+
+// 监听滚动事件，控制回到顶部按钮显示
+const handleScroll = () => {
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+  showBackToTop.value = scrollTop > 300
+}
+
+// 回到顶部
+const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  })
+}
 
 // 点赞功能
 const handleLike = async (postId, isAirForce = false) => {
@@ -327,7 +358,7 @@ const fetchPosts = async (isLoadMore = false) => {
       }
       
       totalPosts.value = posts.value.length
-      hasMore.value = newPosts.length === pageSize.value
+      hasMorePosts.value = newPosts.length === pageSize.value
     }
   } catch (error) {
     console.error('获取帖子列表失败:', error)
@@ -339,7 +370,7 @@ const fetchPosts = async (isLoadMore = false) => {
 
 // 加载更多帖子
 const loadMorePosts = async () => {
-  if (loadingMore.value || !hasMore.value) return
+  if (loadingMore.value || !hasMorePosts.value) return
   loadingMore.value = true
   try {
     await fetchPosts(true)
@@ -404,7 +435,7 @@ const fetchAirForcePosts = async (isLoadMore = false) => {
         airForcePageNum.value = 1
       }
       
-      hasMore.value = newPosts.length === 10
+      hasMoreAirForce.value = newPosts.length === 10
     }
   } catch (error) {
     console.error('获取空军帖子失败:', error)
@@ -413,7 +444,7 @@ const fetchAirForcePosts = async (isLoadMore = false) => {
 
 // 加载更多空军帖子
 const loadMoreAirForcePosts = async () => {
-  if (loadingMore.value || !hasMore.value) return
+  if (loadingMore.value || !hasMoreAirForce.value) return
   loadingMore.value = true
   try {
     await fetchAirForcePosts(true)
@@ -427,6 +458,12 @@ onMounted(() => {
   fetchPosts()
   fetchAirForceStats()
   fetchAirForcePosts()
+  window.addEventListener('scroll', handleScroll)
+})
+
+// 页面卸载时移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
 })
 
 // 排序后的帖子
@@ -953,6 +990,49 @@ const getFishTypeTag = (species) => {
       }
     }
   }
+}
+
+// 回到顶部按钮样式
+.back-to-top {
+  position: fixed;
+  right: 3vw;
+  bottom: 5vh;
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+  z-index: 999;
+
+  .el-icon {
+    font-size: 1.5rem;
+    color: white;
+  }
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// 淡入淡出动画
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 /* 响应式设计 */
