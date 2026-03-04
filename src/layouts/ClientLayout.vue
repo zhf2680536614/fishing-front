@@ -1,6 +1,13 @@
 <template>
   <div class="client-layout">
-    <!-- 粒子背景 -->
+    <!-- 渐变流动背景 -->
+    <div class="gradient-bg">
+      <div class="gradient-blob blob-1"></div>
+      <div class="gradient-blob blob-2"></div>
+      <div class="gradient-blob blob-3"></div>
+      <div class="gradient-blob blob-4"></div>
+    </div>
+    <!-- 波浪粒子背景 -->
     <div id="tsparticles" class="particles-container"></div>
 
     <!-- 顶部导航栏 -->
@@ -248,6 +255,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { loadSlim } from '@tsparticles/slim'
+import { tsParticles } from '@tsparticles/engine'
 import {
   House,
   MapLocation,
@@ -266,8 +275,7 @@ import {
   Menu,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { loadSlim } from '@tsparticles/slim'
-import { tsParticles } from '@tsparticles/engine'
+
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -301,7 +309,7 @@ const handleResize = () => {
   }
 }
 
-// 粒子配置选项
+// 波浪粒子配置
 const particlesOptions = {
   fullScreen: false,
   background: {
@@ -310,65 +318,89 @@ const particlesOptions = {
     },
   },
   fpsLimit: 60,
-  interactivity: {
-    events: {
-      onHover: {
-        enable: true,
-        mode: 'grab',
-      },
-      onClick: {
-        enable: true,
-        mode: 'push',
-      },
-    },
-    modes: {
-      grab: {
-        distance: 140,
-        links: {
-          opacity: 0.5,
-        },
-      },
-      push: {
-        quantity: 4,
-      },
-    },
-  },
   particles: {
     color: {
-      value: ['#667eea', '#764ba2', '#4facfe', '#00f2fe'],
-    },
-    links: {
-      color: '#667eea',
-      distance: 150,
-      enable: true,
-      opacity: 0.2,
-      width: 1,
+      value: ['#667eea', '#764ba2', '#4facfe', '#00f2fe', '#43e97b'],
     },
     move: {
-      direction: 'none',
+      direction: 'top',
       enable: true,
       outModes: {
-        default: 'bounce',
+        default: 'out',
+        top: 'out',
+        bottom: 'out',
       },
       random: true,
-      speed: 1,
+      speed: {
+        min: 1,
+        max: 3,
+      },
       straight: false,
+      trail: {
+        enable: true,
+        length: 20,
+        fill: {
+          color: {
+            value: 'transparent',
+          },
+        },
+      },
+      vibrate: false,
+      warp: false,
     },
     number: {
       density: {
         enable: true,
         area: 800,
       },
-      value: 80,
+      value: 40,
     },
     opacity: {
-      value: 0.5,
+      value: {
+        min: 0.1,
+        max: 0.3,
+      },
+      animation: {
+        enable: true,
+        speed: 1,
+        sync: false,
+      },
     },
     shape: {
       type: 'circle',
     },
     size: {
-      value: { min: 1, max: 3 },
+      value: {
+        min: 8,
+        max: 20,
+      },
+      animation: {
+        enable: true,
+        speed: 2,
+        sync: false,
+      },
+    },
+    wobble: {
+      enable: true,
+      distance: 10,
+      speed: {
+        angle: 5,
+        move: 10,
+      },
+    },
+  },
+  interactivity: {
+    events: {
+      onHover: {
+        enable: true,
+        mode: 'repulse',
+      },
+    },
+    modes: {
+      repulse: {
+        distance: 100,
+        duration: 0.4,
+      },
     },
   },
   detectRetina: true,
@@ -426,6 +458,100 @@ onUnmounted(() => {
   position: relative;
 }
 
+/* 渐变流动背景 */
+.gradient-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 50%, #f0f4f8 100%);
+
+  .gradient-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.5;
+    will-change: transform, opacity, filter;
+  }
+
+  .blob-1 {
+    width: 600px;
+    height: 600px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    top: -200px;
+    left: -100px;
+    animation: float 12s infinite ease-in-out, pulse 8s infinite ease-in-out;
+    animation-delay: 0s, 0s;
+  }
+
+  .blob-2 {
+    width: 500px;
+    height: 500px;
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    top: 20%;
+    right: -150px;
+    animation: float 14s infinite ease-in-out, pulse 10s infinite ease-in-out;
+    animation-delay: -3s, -2s;
+  }
+
+  .blob-3 {
+    width: 400px;
+    height: 400px;
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    bottom: -100px;
+    left: 20%;
+    animation: float 16s infinite ease-in-out, pulse 12s infinite ease-in-out;
+    animation-delay: -6s, -4s;
+  }
+
+  .blob-4 {
+    width: 350px;
+    height: 350px;
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    bottom: 30%;
+    right: 10%;
+    animation: float 18s infinite ease-in-out, pulse 14s infinite ease-in-out;
+    animation-delay: -9s, -6s;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    border-radius: 50%;
+  }
+  20% {
+    transform: translate(100px, -80px) scale(1.2) rotate(72deg);
+    border-radius: 60% 40% 50% 50%;
+  }
+  40% {
+    transform: translate(-80px, 100px) scale(0.85) rotate(144deg);
+    border-radius: 40% 60% 60% 40%;
+  }
+  60% {
+    transform: translate(80px, 60px) scale(1.15) rotate(216deg);
+    border-radius: 50% 50% 40% 60%;
+  }
+  80% {
+    transform: translate(-60px, -100px) scale(0.9) rotate(288deg);
+    border-radius: 60% 40% 40% 60%;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+    filter: blur(60px);
+  }
+  50% {
+    opacity: 0.7;
+    filter: blur(80px);
+  }
+}
+
 /* 粒子背景容器 */
 .particles-container {
   position: fixed;
@@ -433,27 +559,28 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 0;
-  pointer-events: auto;
+  z-index: 1;
+  pointer-events: none;
 }
 
 /* 顶部导航 - 现代简约风格 */
 .header-glass {
-  position: fixed;
-  top: 0;
+  position: sticky;
+  top: -80px;
   left: 0;
   width: 100vw;
   padding: 0.5vw 0vh;
   height: var(--nav-height);
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(24px);
-  border-bottom: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   z-index: 1000;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
   transition: all var(--transition-normal);
 
   &:hover {
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 6px 40px rgba(0, 0, 0, 0.12);
   }
 
   .header-content {
@@ -871,7 +998,6 @@ onUnmounted(() => {
 .main-content {
   position: relative;
   z-index: 1;
-  margin-top: 7vh;
   flex: 1;
   padding-bottom: 40px;
   /* 页面切换动画 */
@@ -895,7 +1021,8 @@ onUnmounted(() => {
 
 /* Footer */
 .footer {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.85), rgba(22, 33, 62, 0.9));
+  backdrop-filter: blur(20px);
   color: var(--white);
   padding: 70px 0 40px;
   position: relative;
@@ -971,7 +1098,7 @@ onUnmounted(() => {
 
     .footer-slogan {
       font-size: 18px;
-      color: #d1d5db;
+      color: rgba(255, 255, 255, 0.75);
       margin-bottom: 20px;
       font-weight: 500;
       line-height: 1.4;
@@ -979,7 +1106,7 @@ onUnmounted(() => {
 
     .footer-tech {
       font-size: 15px;
-      color: #9ca3af;
+      color: rgba(255, 255, 255, 0.55);
       margin-bottom: 30px;
       line-height: 1.4;
     }
@@ -1019,7 +1146,7 @@ onUnmounted(() => {
     .footer-title {
       font-size: 18px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.9);
+      color: rgba(255, 255, 255, 0.85);
       margin-bottom: 24px;
       position: relative;
       padding-bottom: 12px;
@@ -1038,7 +1165,7 @@ onUnmounted(() => {
 
     .footer-link {
       display: block;
-      color: #9ca3af;
+      color: rgba(255, 255, 255, 0.6);
       font-size: 15px;
       margin-bottom: 16px;
       text-decoration: none;
@@ -1069,13 +1196,13 @@ onUnmounted(() => {
       display: flex;
       align-items: flex-start;
       gap: 12px;
-      color: #9ca3af;
+      color: rgba(255, 255, 255, 0.6);
       font-size: 15px;
       margin-bottom: 16px;
       transition: all var(--transition-normal);
 
       &:hover {
-        color: var(--white);
+        color: rgba(255, 255, 255, 0.9);
       }
 
       .contact-icon {
@@ -1093,7 +1220,7 @@ onUnmounted(() => {
     margin: 0 auto;
     margin-top: 60px;
     padding-top: 30px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -1103,7 +1230,7 @@ onUnmounted(() => {
 
     .copyright {
       text-align: center;
-      color: #6b7280;
+      color: rgba(255, 255, 255, 0.45);
       font-size: 15px;
       line-height: 1.4;
     }
@@ -1239,4 +1366,5 @@ onUnmounted(() => {
     }
   }
 }
+
 </style>

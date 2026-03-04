@@ -1024,14 +1024,18 @@ onMounted(() => {
   transition: all 0.3s ease;
 
   &:hover {
-    transform: scale(1.02);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+
+    .post-image {
+      transform: scale(1.08);
+    }
   }
 
   .post-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.4s ease;
   }
 
   .post-overlay {

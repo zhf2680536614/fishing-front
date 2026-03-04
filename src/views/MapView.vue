@@ -427,7 +427,7 @@ const loadMap = async () => {
         map.value.addControl(new window.AMap.Scale())
         // 添加工具条控件（包含缩放按钮）
         map.value.addControl(new window.AMap.ToolBar({
-          position: 'RB',
+          position: 'LT',
           offset: [20, 20]
         }))
       } catch (e) {
@@ -545,22 +545,26 @@ onUnmounted(() => {
 }
 
 .page-header {
-  position: relative;
-  z-index: 1;
-  padding: 8vh 0 4vh;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 4vh 0;
+  background: linear-gradient(135deg, rgba(67, 97, 238, 0.95), rgba(72, 149, 239, 0.95));
+  backdrop-filter: blur(10px);
   color: white;
+  box-shadow: 0 4px 20px rgba(67, 97, 238, 0.3);
 
   .page-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    margin-bottom: 1vh;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.5vh;
     color: white;
   }
 
   .page-description {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     opacity: 0.9;
+    margin: 0;
   }
 }
 

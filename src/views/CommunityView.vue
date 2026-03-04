@@ -1,5 +1,5 @@
 <template>
-  <div class="community-page" ref="pageRef">
+  <div class="community-page">
     <!-- 页面标题 -->
     <div class="page-header">
       <div class="container">
@@ -198,23 +198,12 @@
       </div>
     </div>
 
-    <!-- 回到顶部按钮 -->
-    <transition name="fade">
-      <div 
-        v-show="showBackToTop" 
-        class="back-to-top" 
-        @click="scrollToTop"
-        title="回到顶部"
-      >
-        <el-icon><ArrowUp /></el-icon>
-      </div>
-    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { View, Star, ChatLineSquare, Trophy, Warning, Cpu, Plus, ArrowRight, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { View, Star, ChatLineSquare, Trophy, Warning, Cpu, Plus, ArrowRight, ArrowDown } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { getPostList, toggleLike, incrementView } from '@/api/post'
 import { getAirForceStats, getAirForcePosts } from '@/api/airforce'
@@ -271,22 +260,7 @@ const airForcePosts = ref([])
 const airForcePageNum = ref(1)
 
 // 回到顶部相关
-const pageRef = ref(null)
-const showBackToTop = ref(false)
 
-// 监听滚动事件，控制回到顶部按钮显示
-const handleScroll = () => {
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-  showBackToTop.value = scrollTop > 300
-}
-
-// 回到顶部
-const scrollToTop = () => {
-  window.scrollTo({
-    top: 0,
-    behavior: 'smooth'
-  })
-}
 
 // 点赞功能
 const handleLike = async (postId, isAirForce = false) => {
@@ -458,12 +432,6 @@ onMounted(() => {
   fetchPosts()
   fetchAirForceStats()
   fetchAirForcePosts()
-  window.addEventListener('scroll', handleScroll)
-})
-
-// 页面卸载时移除事件监听
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
 })
 
 // 排序后的帖子
@@ -514,22 +482,26 @@ const getFishTypeTag = (species) => {
 }
 
 .page-header {
-  position: relative;
-  z-index: 1;
-  padding: 8vh 0 4vh;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 4vh 0;
+  background: linear-gradient(135deg, rgba(67, 97, 238, 0.95), rgba(72, 149, 239, 0.95));
+  backdrop-filter: blur(10px);
   color: white;
+  box-shadow: 0 4px 20px rgba(67, 97, 238, 0.3);
 
   .page-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    margin-bottom: 1vh;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.5vh;
     color: white;
   }
 
   .page-description {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     opacity: 0.9;
+    margin: 0;
   }
 }
 
@@ -735,22 +707,34 @@ const getFishTypeTag = (species) => {
   display: flex;
   justify-content: center;
   padding: 2vh 0;
+  position: relative;
+  z-index: 1;
   
   .load-more-btn {
-    width: 200px;
-    height: 45px;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-color);
-    background: white;
-    color: var(--text-primary);
-    font-weight: 500;
+    min-width: 180px;
+    height: 48px;
+    border-radius: 24px;
+    border: 2px solid transparent;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    font-weight: 600;
     font-size: 1rem;
-    transition: all var(--transition-normal);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
     
     &:hover {
-      border-color: var(--primary-color);
-      color: var(--primary-color);
-      background: var(--bg-primary);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
+      background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+    
+    .el-icon {
+      margin-right: 6px;
+      font-size: 1.1rem;
     }
   }
   
@@ -758,6 +742,23 @@ const getFishTypeTag = (species) => {
     color: var(--text-light);
     font-size: 0.9rem;
     padding: 1.5vh 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    &::before {
+      content: '';
+      width: 30px;
+      height: 1px;
+      background: var(--border-color);
+    }
+    
+    &::after {
+      content: '';
+      width: 30px;
+      height: 1px;
+      background: var(--border-color);
+    }
   }
 }
 
@@ -1011,49 +1012,6 @@ const getFishTypeTag = (species) => {
       }
     }
   }
-}
-
-// 回到顶部按钮样式
-.back-to-top {
-  position: fixed;
-  right: 3vw;
-  bottom: 5vh;
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  transition: all 0.3s ease;
-  z-index: 999;
-
-  .el-icon {
-    font-size: 1.5rem;
-    color: white;
-  }
-
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-}
-
-// 淡入淡出动画
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 
 /* 响应式设计 */
