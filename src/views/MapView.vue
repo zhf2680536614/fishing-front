@@ -12,21 +12,38 @@
     <div class="search-section">
       <div class="container">
         <div class="search-bar">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索钓点名称或地址"
-            prefix-icon="Search"
-            class="search-input"
-          />
-          <el-select v-model="spotType" class="type-select">
+          <div class="search-input-wrapper">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索钓点名称或地址"
+              prefix-icon="Search"
+              class="search-input"
+              @input="handleSearchInput"
+              @focus="showSearchResults = true"
+              clearable
+            />
+            <!-- 搜索结果下拉 -->
+            <div class="search-results" v-if="showSearchResults && searchResults.length > 0">
+              <div
+                v-for="spot in searchResults"
+                :key="spot.id"
+                class="search-result-item"
+                @click="selectSearchResult(spot)"
+              >
+                <div class="result-name">{{ spot.name }}</div>
+                <div class="result-address">{{ spot.address }}</div>
+              </div>
+            </div>
+            <div class="search-results empty" v-if="showSearchResults && searchKeyword && searchResults.length === 0 && !searchLoading">
+              <div class="no-result">未找到相关钓点</div>
+            </div>
+          </div>
+          <el-select v-model="spotType" class="type-select" @change="handleTypeChange" placeholder="全部类型">
             <el-option label="全部类型" value="all" />
-            <el-option label="野钓点" value="wild" />
-            <el-option label="黑坑/收费" value="paid" />
-            <el-option label="路亚基地" value="lure" />
+            <el-option label="野钓点" :value="0" />
+            <el-option label="黑坑/收费" :value="1" />
+            <el-option label="路亚基地" :value="2" />
           </el-select>
-          <el-button type="primary" class="search-btn">
-            <el-icon><Search /></el-icon> 搜索
-          </el-button>
         </div>
       </div>
     </div>
@@ -34,6 +51,14 @@
     <!-- 地图容器 -->
     <div class="map-container">
       <div id="map" class="map"></div>
+      
+      <!-- 加载蒙版 -->
+      <div class="map-loading-mask" v-if="mapLoading">
+        <div class="loading-content">
+          <el-icon class="loading-icon"><Loading /></el-icon>
+          <p class="loading-text">地图加载中...</p>
+        </div>
+      </div>
 
       <!-- 侧边栏 -->
       <div class="sidebar" :class="{ open: showSidebar }">
@@ -42,43 +67,66 @@
           <el-icon class="close-btn" @click="showSidebar = false"><Close /></el-icon>
         </div>
         <div class="sidebar-content" v-if="selectedSpot">
-          <div class="spot-image">
-            <img :src="selectedSpot.image" alt="钓点图片" />
-          </div>
-          <h4>{{ selectedSpot.name }}</h4>
-          <div class="spot-meta">
-            <el-tag :type="getTypeTagType(selectedSpot.type)">{{
-              getTypeText(selectedSpot.type)
-            }}</el-tag>
-            <div class="price">{{ selectedSpot.price }}</div>
-          </div>
-          <div class="spot-info">
-            <div class="info-item">
-              <el-icon class="info-icon"><MapLocation /></el-icon>
-              <span>{{ selectedSpot.address }}</span>
+          <div class="spot-image-carousel">
+            <el-carousel 
+              height="220px" 
+              indicator-position="none" 
+              v-if="selectedSpot.images && selectedSpot.images.length > 0"
+              :autoplay="false"
+            >
+              <el-carousel-item v-for="(img, index) in selectedSpot.images" :key="index">
+                <img :src="img" alt="钓点图片" class="carousel-img" />
+              </el-carousel-item>
+            </el-carousel>
+            <div v-else class="spot-image-single">
+              <img :src="selectedSpot.image" alt="钓点图片" />
             </div>
-            <div class="info-item">
-              <el-icon class="info-icon"><Collection /></el-icon>
-              <span>{{ selectedSpot.fishInfo }}</span>
-            </div>
-            <div class="info-item">
-              <el-icon class="info-icon"><Star /></el-icon>
-              <span>{{ selectedSpot.rating }}分</span>
+            <div class="carousel-indicators" v-if="selectedSpot.images && selectedSpot.images.length > 1">
+              <span 
+                v-for="(_, index) in selectedSpot.images" 
+                :key="index" 
+                class="indicator-dot"
+              ></span>
             </div>
           </div>
-          <div class="ai-recommendation">
-            <h5>
-              <el-icon class="ai-icon"><Cpu /></el-icon> AI 智能推荐
-            </h5>
-            <p>{{ selectedSpot.aiRecommendation }}</p>
-          </div>
-          <div class="sidebar-actions">
-            <el-button type="primary" class="action-btn">
-              <el-icon><MapLocation /></el-icon> 导航前往
-            </el-button>
-            <el-button class="action-btn">
-              <el-icon><ChatLineSquare /></el-icon> 查看评论
-            </el-button>
+          <div class="spot-info-section">
+            <h4 class="spot-name">{{ selectedSpot.name }}</h4>
+            <div class="spot-meta">
+              <el-tag :type="getTypeTagType(selectedSpot.type)" size="small">{{
+                getTypeText(selectedSpot.type)
+              }}</el-tag>
+              <span class="spot-rating">
+                <el-icon><Star /></el-icon>
+                {{ selectedSpot.rating?.toFixed(1) || '4.5' }}分
+              </span>
+              <span class="spot-price">{{ selectedSpot.price }}</span>
+            </div>
+            <div class="spot-details">
+              <div class="detail-item">
+                <el-icon class="detail-icon"><MapLocation /></el-icon>
+                <span>{{ selectedSpot.address }}</span>
+              </div>
+              <div class="detail-item">
+                <el-icon class="detail-icon"><Collection /></el-icon>
+                <span>{{ selectedSpot.fishInfo || '暂无鱼种信息' }}</span>
+              </div>
+            </div>
+            <div class="ai-recommendation">
+              <div class="ai-header">
+                <el-icon class="ai-icon"><Cpu /></el-icon>
+                <span>AI 智能分析</span>
+              </div>
+              <div v-if="aiLoading" class="ai-loading">
+                <el-icon class="loading-spinner"><Loading /></el-icon>
+                <span>AI 分析中...</span>
+              </div>
+              <p class="ai-content" v-else>{{ aiAnalysis || '暂无分析结果' }}</p>
+            </div>
+            <div class="sidebar-actions">
+              <el-button type="primary" class="action-btn" @click="navigateToSpot">
+                <el-icon><MapLocation /></el-icon> 导航前往
+              </el-button>
+            </div>
           </div>
         </div>
         <div class="empty-sidebar" v-else>
@@ -88,15 +136,15 @@
       </div>
     </div>
 
-    <!-- 钓点列表 -->
+    <!-- 推荐钓点 -->
     <div class="spots-list-section">
       <div class="container">
         <h2 class="section-title">
-          <el-icon class="title-icon"><MapLocation /></el-icon> 附近钓点
+          <el-icon class="title-icon"><Star /></el-icon> AI智能推荐钓点
         </h2>
-        <div class="spots-grid">
+        <div class="spots-grid recommend-grid">
           <div
-            v-for="spot in filteredSpots"
+            v-for="spot in recommendSpots"
             :key="spot.id"
             class="spot-card"
             @click="selectSpot(spot)"
@@ -110,13 +158,12 @@
             <div class="spot-card-content">
               <h4>{{ spot.name }}</h4>
               <div class="spot-card-meta">
-                <span class="distance">{{ spot.distance }}km</span>
-                <span class="rating">{{ spot.rating }}分</span>
+                <span class="distance">{{ spot.distance.toFixed(1) }}km</span>
+                <span class="rating">{{ spot.rating.toFixed(1) }}分</span>
               </div>
               <p class="spot-card-desc">{{ spot.address }}</p>
               <div class="spot-card-footer">
                 <span class="price">{{ spot.price }}</span>
-                <el-button size="small" type="primary" plain> 查看详情 </el-button>
               </div>
             </div>
           </div>
@@ -127,7 +174,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import {
   Search,
   Close,
@@ -136,93 +183,152 @@ import {
   Cpu,
   ChatLineSquare,
   Collection,
+  Loading,
 } from '@element-plus/icons-vue'
+import { getSpotList, getRecommendSpots, searchSpots, analyzeSpot } from '@/api/spot'
 
 // 响应式数据
 const searchKeyword = ref('')
 const spotType = ref('all')
 const showSidebar = ref(false)
 const selectedSpot = ref(null)
+const spots = ref([])
+const recommendSpots = ref([])
+const searchResults = ref([])
+const showSearchResults = ref(false)
+const searchLoading = ref(false)
+const mapLoading = ref(true)
+const map = ref(null)
+const markers = ref([])
+const aiLoading = ref(false)
+const aiAnalysis = ref('')
+let searchTimer = null
+let mapLoadingPromise = null
+let mapInitialized = false
 
-// 模拟钓点数据
-const spots = ref([
-  {
-    id: 1,
-    name: '西湖垂钓区',
-    type: 'wild',
-    address: '杭州市西湖区西湖景区',
-    price: '免费',
-    fishInfo: '鲫鱼、鲤鱼、草鱼',
-    rating: 4.8,
-    distance: 2.5,
-    image:
-      'https://images.unsplash.com/photo-1507525428034-b723cf96123e?w=800&auto=format&fit=crop',
-    aiRecommendation:
-      '根据历史数据和地形分析，建议在湖西岸的芦苇丛附近垂钓，水深2-3米，使用蚯蚓或商品饵，最佳垂钓时间为清晨6-9点。',
-  },
-  {
-    id: 2,
-    name: '钱塘江野钓点',
-    type: 'wild',
-    address: '杭州市江干区钱塘江畔',
-    price: '免费',
-    fishInfo: '翘嘴、鲈鱼、鲶鱼',
-    rating: 4.5,
-    distance: 5.8,
-    image: 'https://images.unsplash.com/photo-1557800636-894a64c1696f?w=800&auto=format&fit=crop',
-    aiRecommendation: '建议在潮水退潮时垂钓，选择缓流区域，使用路亚假饵，目标鱼种为翘嘴和鲈鱼。',
-  },
-  {
-    id: 3,
-    name: '千岛湖黑坑',
-    type: 'paid',
-    address: '杭州市淳安县千岛湖',
-    price: '100元/天',
-    fishInfo: '青鱼、草鱼、鳙鱼',
-    rating: 4.9,
-    distance: 120,
-    image: 'https://images.unsplash.com/photo-1547129840-34d82276c408?w=800&auto=format&fit=crop',
-    aiRecommendation:
-      '根据季节和天气分析，建议使用玉米或颗粒饲料打窝，主钓青鱼，钓点选择在深水区。',
-  },
-  {
-    id: 4,
-    name: '西溪湿地路亚基地',
-    type: 'lure',
-    address: '杭州市余杭区西溪湿地',
-    price: '150元/天',
-    fishInfo: '鲈鱼、鳜鱼、黑鱼',
-    rating: 4.7,
-    distance: 8.2,
-    image:
-      'https://images.unsplash.com/photo-1579098382271-091f68b2226b?w=800&auto=format&fit=crop',
-    aiRecommendation:
-      '建议使用软虫或硬饵，在芦苇丛边缘和结构复杂的区域搜索，重点关注清晨和傍晚时段。',
-  },
-])
+// 搜索输入处理（防抖）
+const handleSearchInput = () => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+  
+  if (!searchKeyword.value) {
+    searchResults.value = []
+    showSearchResults.value = false
+    return
+  }
+  
+  searchTimer = setTimeout(async () => {
+    searchLoading.value = true
+    showSearchResults.value = true
+    try {
+      const typeParam = spotType.value === 'all' ? null : spotType.value
+      const data = await searchSpots(searchKeyword.value, typeParam)
+      searchResults.value = data
+    } catch (error) {
+      console.error('搜索失败:', error)
+      searchResults.value = []
+    } finally {
+      searchLoading.value = false
+    }
+  }, 300)
+}
 
-// 过滤后的钓点列表
-const filteredSpots = computed(() => {
-  return spots.value.filter((spot) => {
-    const matchesKeyword =
-      !searchKeyword.value ||
-      spot.name.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-      spot.address.toLowerCase().includes(searchKeyword.value.toLowerCase())
-    const matchesType = spotType.value === 'all' || spot.type === spotType.value
-    return matchesKeyword && matchesType
-  })
-})
+// 选择搜索结果
+const selectSearchResult = (spot) => {
+  showSearchResults.value = false
+  searchKeyword.value = ''
+  searchResults.value = []
+  selectSpot(spot)
+}
+
+// 类型变化处理
+const handleTypeChange = async () => {
+  // 重新加载推荐钓点
+  await loadRecommendSpots()
+  // 重新加载地图标记
+  await loadSpotsByType()
+}
+
+// 根据类型加载钓点
+const loadSpotsByType = async () => {
+  try {
+    let data
+    if (spotType.value !== 'all') {
+      data = await searchSpots(null, spotType.value)
+    } else {
+      data = await getSpotList()
+    }
+    spots.value = data
+    addMarkers()
+  } catch (error) {
+    console.error('加载钓点数据失败:', error)
+  }
+}
+
+// 点击外部关闭搜索结果
+const handleClickOutside = (e) => {
+  const wrapper = document.querySelector('.search-input-wrapper')
+  if (wrapper && !wrapper.contains(e.target)) {
+    showSearchResults.value = false
+  }
+}
 
 // 选择钓点
 const selectSpot = (spot) => {
   selectedSpot.value = spot
   showSidebar.value = true
-  // 这里可以添加地图标记定位逻辑
+  // 地图定位到选中的钓点
+  if (map.value && spot.longitude && spot.latitude) {
+    map.value.setCenter([spot.longitude, spot.latitude])
+    map.value.setZoom(15)
+  }
+  // 调用 AI 分析
+  fetchAIAnalysis(spot)
+}
+
+// 获取 AI 分析
+const fetchAIAnalysis = (spot) => {
+  aiLoading.value = true
+  aiAnalysis.value = ''
+  
+  const typeMap = { wild: 0, paid: 1, lure: 2 }
+  const spotType = typeof spot.type === 'number' ? spot.type : typeMap[spot.type]
+  
+  analyzeSpot(
+    spot.name,
+    spotType,
+    spot.address,
+    spot.fishInfo,
+    (content) => {
+      aiAnalysis.value += content
+    },
+    () => {
+      aiLoading.value = false
+    },
+    (error) => {
+      aiLoading.value = false
+      aiAnalysis.value = 'AI 分析暂时不可用'
+      console.error('AI 分析失败:', error)
+    }
+  )
+}
+
+// 导航到钓点
+const navigateToSpot = () => {
+  if (selectedSpot.value && selectedSpot.value.longitude && selectedSpot.value.latitude) {
+    const { longitude, latitude, name } = selectedSpot.value
+    // 调用高德地图导航
+    window.open(`https://uri.amap.com/marker?position=${longitude},${latitude}&name=${encodeURIComponent(name)}&src=application`)
+  }
 }
 
 // 获取类型标签类型
 const getTypeTagType = (type) => {
   const typeMap = {
+    0: 'success',
+    1: 'warning',
+    2: 'primary',
     wild: 'success',
     paid: 'warning',
     lure: 'primary',
@@ -233,6 +339,9 @@ const getTypeTagType = (type) => {
 // 获取类型文本
 const getTypeText = (type) => {
   const typeMap = {
+    0: '野钓',
+    1: '黑坑',
+    2: '路亚',
     wild: '野钓',
     paid: '黑坑',
     lure: '路亚',
@@ -241,22 +350,190 @@ const getTypeText = (type) => {
 }
 
 // 初始化地图
-onMounted(() => {
-  // 这里可以集成高德或百度地图API
-  // 由于是模拟环境，我们只创建一个占位地图
-  const mapElement = document.getElementById('map')
-  if (mapElement) {
-    mapElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-    mapElement.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: white; font-size: 1.2rem;">
-        <div style="text-align: center;">
-          <el-icon style="font-size: 3rem; margin-bottom: 20px;"><MapLocation /></el-icon>
-          <p>地图加载中...</p>
-          <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 10px;">实际项目中会集成高德/百度地图API</p>
-        </div>
-      </div>
-    `
+const initMap = async () => {
+  // 等待 DOM 渲染完成
+  await nextTick()
+  
+  // 如果已经初始化过，直接返回
+  if (mapInitialized && map.value) {
+    return
   }
+  
+  // 如果已经有加载中的 Promise，直接等待
+  if (mapLoadingPromise) {
+    return mapLoadingPromise
+  }
+  
+  // 加载高德地图API
+  if (!window.AMap) {
+    mapLoadingPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = `https://webapi.amap.com/maps?v=2.0&key=${import.meta.env.VITE_AMAP_KEY}`
+      script.onload = async () => {
+        try {
+          await loadMap()
+          mapInitialized = true
+          resolve()
+        } catch (error) {
+          reject(error)
+        }
+      }
+      script.onerror = () => {
+        reject(new Error('高德地图脚本加载失败'))
+      }
+      document.head.appendChild(script)
+    })
+    
+    try {
+      await mapLoadingPromise
+    } finally {
+      mapLoadingPromise = null
+    }
+  } else {
+    await loadMap()
+    mapInitialized = true
+  }
+}
+
+// 加载地图
+const loadMap = async () => {
+  mapLoading.value = true
+  try {
+    // 确保 DOM 元素存在
+    const mapElement = document.getElementById('map')
+    if (!mapElement) {
+      throw new Error('地图容器元素不存在')
+    }
+    
+    // 销毁旧的地图实例（如果存在）
+    if (map.value) {
+      map.value.destroy()
+      map.value = null
+    }
+    
+    // 初始化地图
+    map.value = new window.AMap.Map('map', {
+      center: [120.15507, 30.274085], // 默认杭州
+      zoom: 11,
+      viewMode: '3D',
+      scrollWheel: false // 禁用鼠标滚轮缩放
+    })
+
+    // 异步加载控件插件
+    window.AMap.plugin(['AMap.Scale', 'AMap.ToolBar'], () => {
+      if (!map.value) return
+      try {
+        // 添加比例尺控件
+        map.value.addControl(new window.AMap.Scale())
+        // 添加工具条控件（包含缩放按钮）
+        map.value.addControl(new window.AMap.ToolBar({
+          position: 'RB',
+          offset: [20, 20]
+        }))
+      } catch (e) {
+        console.warn('添加地图控件失败:', e)
+      }
+    })
+
+    // 加载钓点数据
+    await loadSpots()
+    // 加载推荐钓点
+    await loadRecommendSpots()
+    
+    // 加载完成
+    mapLoading.value = false
+  } catch (error) {
+    console.error('地图初始化失败:', error)
+    mapLoading.value = false
+    // 显示错误信息
+    const mapElement = document.getElementById('map')
+    if (mapElement) {
+      mapElement.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666; font-size: 1.2rem;">
+          <div style="text-align: center;">
+            <el-icon style="font-size: 3rem; margin-bottom: 20px; color: #f56c6c;"><Warning /></el-icon>
+            <p>地图加载失败，请检查网络连接</p>
+            <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 10px;">错误信息: ${error.message}</p>
+          </div>
+        </div>
+      `
+    }
+  }
+}
+
+// 加载钓点数据
+const loadSpots = async () => {
+  try {
+    const data = await getSpotList()
+    spots.value = data
+    // 在地图上标记钓点
+    addMarkers()
+  } catch (error) {
+    console.error('加载钓点数据失败:', error)
+    spots.value = []
+  }
+}
+
+// 加载推荐钓点
+const loadRecommendSpots = async () => {
+  try {
+    const typeParam = spotType.value === 'all' ? null : spotType.value
+    const data = await getRecommendSpots(typeParam)
+    recommendSpots.value = data
+  } catch (error) {
+    console.error('加载推荐钓点失败:', error)
+    recommendSpots.value = []
+  }
+}
+
+// 添加标记
+const addMarkers = () => {
+  if (!map.value) return
+
+  // 清除之前的标记
+  markers.value.forEach(marker => marker.remove())
+  markers.value = []
+
+  // 添加新标记
+  spots.value.forEach(spot => {
+    if (spot.longitude && spot.latitude) {
+      // 使用默认图标，避免SVG数据URL可能的问题
+      const marker = new window.AMap.Marker({
+        position: [spot.longitude, spot.latitude],
+        title: spot.name
+      })
+
+      // 添加点击事件
+      marker.on('click', () => {
+        selectSpot(spot)
+      })
+
+      marker.setMap(map.value)
+      markers.value.push(marker)
+    }
+  })
+}
+
+// 初始化
+onMounted(() => {
+  initMap()
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+  // 销毁地图实例
+  if (map.value) {
+    map.value.destroy()
+    map.value = null
+  }
+  // 重置初始化状态
+  mapInitialized = false
+  mapLoadingPromise = null
+  markers.value = []
 })
 </script>
 
@@ -293,19 +570,71 @@ onMounted(() => {
     display: flex;
     gap: 1vw;
 
-    .search-input {
+    .search-input-wrapper {
       flex: 1;
-      height: 50px;
+      position: relative;
+
+      .search-input {
+        height: 50px;
+      }
+
+      .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        margin-top: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 100;
+
+        .search-result-item {
+          padding: 12px 16px;
+          cursor: pointer;
+          transition: background-color 0.2s;
+
+          &:hover {
+            background-color: var(--bg-tertiary);
+          }
+
+          .result-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+          }
+
+          .result-address {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+          }
+        }
+
+        &.empty {
+          padding: 20px;
+          text-align: center;
+
+          .no-result {
+            color: var(--text-secondary);
+          }
+        }
+      }
     }
 
     .type-select {
       width: 150px;
-      height: 50px;
-    }
-
-    .search-btn {
-      height: 50px;
-      padding: 0 2vw;
+      
+      :deep(.el-input__wrapper) {
+        height: 50px;
+        box-sizing: border-box;
+      }
+      
+      :deep(.el-input__inner) {
+        height: 48px;
+        line-height: 48px;
+      }
     }
   }
 }
@@ -322,136 +651,265 @@ onMounted(() => {
     overflow: hidden;
   }
 
+  .map-loading-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: var(--radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+
+    .loading-content {
+      text-align: center;
+
+      .loading-icon {
+        font-size: 3rem;
+        color: var(--primary-color);
+        animation: spin 1s linear infinite;
+      }
+
+      .loading-text {
+        margin-top: 1rem;
+        font-size: 1rem;
+        color: var(--text-secondary);
+      }
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .sidebar {
     position: absolute;
-    right: 0;
-    top: 0;
-    width: 350px;
-    height: 100%;
-    background: white;
-    box-shadow: var(--shadow-lg);
-    border-radius: var(--radius-xl) 0 0 var(--radius-xl);
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
+    right: 20px;
+    top: 20px;
+    bottom: 20px;
+    width: 380px;
+    max-height: calc(100% - 40px);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    border-radius: 16px;
+    transform: translateX(calc(100% + 40px));
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    z-index: 100;
 
     &.open {
       transform: translateX(0);
     }
 
     .sidebar-header {
-      padding: 2vh 2vw;
-      border-bottom: 1px solid var(--border-light);
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0;
 
       h3 {
         margin: 0;
-        font-size: 1.2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
       }
 
       .close-btn {
         font-size: 1.2rem;
         cursor: pointer;
-        color: var(--text-light);
+        color: var(--text-secondary);
+        padding: 4px;
+        border-radius: 50%;
+        transition: all 0.2s;
 
         &:hover {
           color: var(--text-primary);
+          background: rgba(0, 0, 0, 0.05);
         }
       }
     }
 
     .sidebar-content {
       flex: 1;
-      padding: 2vh 2vw;
       overflow-y: auto;
+      padding: 0;
 
-      .spot-image {
-        width: 100%;
-        height: 150px;
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        margin-bottom: 2vh;
+      .spot-image-carousel {
         position: relative;
+        width: 100%;
+        height: 220px;
+        flex-shrink: 0;
 
-        img {
+        .el-carousel {
+          height: 100%;
+          border-radius: 0;
+        }
+
+        .carousel-img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
 
-        .spot-tag {
+        .spot-image-single {
+          width: 100%;
+          height: 100%;
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+
+        .carousel-indicators {
           position: absolute;
-          top: 1vh;
-          left: 1vw;
+          bottom: 12px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          gap: 6px;
+          z-index: 10;
+
+          .indicator-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transition: all 0.2s;
+          }
         }
       }
 
-      h4 {
-        margin-bottom: 1vh;
-        font-size: 1.1rem;
-      }
+      .spot-info-section {
+        padding: 20px;
 
-      .spot-meta {
-        display: flex;
-        align-items: center;
-        gap: 1vw;
-        margin-bottom: 2vh;
-
-        .price {
+        .spot-name {
+          margin: 0 0 12px 0;
+          font-size: 1.25rem;
           font-weight: 600;
-          color: var(--primary-color);
+          color: var(--text-primary);
+          line-height: 1.3;
         }
-      }
 
-      .spot-info {
-        margin-bottom: 2vh;
-
-        .info-item {
+        .spot-meta {
           display: flex;
           align-items: center;
-          gap: 0.8vw;
-          margin-bottom: 1vh;
+          gap: 12px;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
 
-          .info-icon {
+          .spot-rating {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.9rem;
+            color: var(--warning-color);
+            font-weight: 500;
+
+            .el-icon {
+              font-size: 1rem;
+            }
+          }
+
+          .spot-price {
+            font-weight: 600;
             color: var(--primary-color);
-          }
-        }
-      }
-
-      .ai-recommendation {
-        background: var(--bg-tertiary);
-        padding: 2vh;
-        border-radius: var(--radius-lg);
-        margin-bottom: 2vh;
-
-        h5 {
-          display: flex;
-          align-items: center;
-          gap: 0.8vw;
-          margin-bottom: 1vh;
-          color: var(--primary-color);
-
-          .ai-icon {
-            font-size: 1.1rem;
+            font-size: 0.95rem;
           }
         }
 
-        p {
-          font-size: 0.9rem;
-          line-height: 1.6;
-          margin: 0;
+        .spot-details {
+          margin-bottom: 16px;
+
+          .detail-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            color: var(--text-regular);
+            line-height: 1.5;
+
+            .detail-icon {
+              color: var(--primary-color);
+              font-size: 1rem;
+              margin-top: 2px;
+              flex-shrink: 0;
+            }
+
+            span {
+              flex: 1;
+            }
+          }
         }
-      }
 
-      .sidebar-actions {
-        display: flex;
-        gap: 1vw;
+        .ai-recommendation {
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 16px;
+          border: 1px solid rgba(102, 126, 234, 0.15);
 
-        .action-btn {
-          flex: 1;
+          .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+
+            .ai-icon {
+              font-size: 1.1rem;
+            }
+          }
+
+          .ai-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+
+            .loading-spinner {
+              font-size: 1rem;
+              animation: spin 1s linear infinite;
+              color: var(--primary-color);
+            }
+          }
+
+          .ai-content {
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: var(--text-regular);
+            margin: 0;
+          }
+        }
+
+        .sidebar-actions {
+          padding-top: 8px;
+
+          .action-btn {
+            width: 100%;
+            height: 44px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-radius: 10px;
+          }
         }
       }
     }
@@ -463,24 +921,25 @@ onMounted(() => {
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 4vh;
+      padding: 40px;
 
       .empty-icon {
         font-size: 3rem;
         color: var(--text-light);
-        margin-bottom: 2vh;
+        margin-bottom: 16px;
       }
 
       p {
-        color: var(--text-light);
+        color: var(--text-secondary);
         margin: 0;
+        font-size: 0.95rem;
       }
     }
   }
 }
 
 .spots-list-section {
-  padding: 6vh 0;
+  padding: 0.1vh 0;
 
   .section-title {
     display: flex;
@@ -498,6 +957,12 @@ onMounted(() => {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 2vw;
+
+    &.recommend-grid {
+      grid-template-columns: repeat(4, 1fr);
+      max-width: 1400px;
+      margin: 0 auto;
+    }
   }
 
   .spot-card {
@@ -576,24 +1041,49 @@ onMounted(() => {
 }
 
 /* 响应式设计 */
+@media (max-width: 1200px) {
+  .spots-grid {
+    &.recommend-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+}
+
 @media (max-width: 768px) {
   .search-bar {
     flex-direction: column;
 
-    .search-input,
-    .type-select,
-    .search-btn {
-      width: 100% !important;
+    .search-input-wrapper {
+      width: 100%;
+    }
+
+    .type-select {
+      width: 100%;
     }
   }
 
-  .sidebar {
-    width: 100% !important;
-    border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+  .map-container {
+    .sidebar {
+      width: calc(100% - 20px);
+      right: 10px;
+      top: 10px;
+      bottom: 10px;
+      max-height: calc(100% - 20px);
+      border-radius: 12px;
+      transform: translateY(-100%);
+
+      &.open {
+        transform: translateY(0);
+      }
+    }
   }
 
   .spots-grid {
     grid-template-columns: 1fr;
+
+    &.recommend-grid {
+      grid-template-columns: 1fr;
+    }
   }
 }
 </style>

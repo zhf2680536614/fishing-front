@@ -201,23 +201,38 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { View, Star, ChatLineSquare, Trophy, Warning, Cpu, Plus, ArrowRight, ArrowDown } from '@element-plus/icons-vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { getPostList, toggleLike, incrementView } from '@/api/post'
 import { getAirForceStats, getAirForcePosts } from '@/api/airforce'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
 
-// 从 sessionStorage 恢复标签页状态
+// 从 sessionStorage 恢复标签页状态，优先使用 URL query 参数
 const getSavedTab = () => {
+  // 优先使用 URL query 参数
+  const queryTab = route.query.activeTab
+  if (queryTab) {
+    return queryTab === 'air-force' ? 'air-force' : 'posts'
+  }
   const savedTab = sessionStorage.getItem('community_active_tab')
   return savedTab || 'posts'
 }
 
 // 响应式数据
 const activeTab = ref(getSavedTab())
+
+// 监听路由 query 参数变化
+watch(() => route.query.activeTab, (newTab) => {
+  if (newTab) {
+    activeTab.value = newTab === 'air-force' ? 'air-force' : 'posts'
+    // 更新 sessionStorage
+    sessionStorage.setItem('community_active_tab', activeTab.value)
+  }
+}, { immediate: true })
 
 // 监听标签页变化并保存到 sessionStorage
 const saveTabState = (tab) => {
@@ -481,7 +496,7 @@ const getFishTypeTag = (species) => {
 .nav-tabs {
   background: white;
   box-shadow: var(--shadow-md);
-  margin-bottom: 4vh;
+  margin-bottom: 1vh;
 
   .community-tabs {
     :deep(.el-tabs__header) {
@@ -494,7 +509,7 @@ const getFishTypeTag = (species) => {
       .el-tabs__item {
         font-size: 1.1rem;
         font-weight: 500;
-        padding: 2vh 2vw;
+        padding: 3vh 2vw;
 
         &.is-active {
           color: var(--primary-color);
@@ -509,7 +524,7 @@ const getFishTypeTag = (species) => {
 }
 
 .tab-content {
-  padding: 4vh 0;
+  padding: 1vh 0;
 }
 
 .filter-bar {
@@ -517,7 +532,7 @@ const getFishTypeTag = (species) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4vh;
-  padding: 2vh 2vw;
+  padding: 1vh 2vw;
   background: white;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);

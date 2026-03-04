@@ -111,8 +111,8 @@ const handleLogin = async () => {
       loading.value = true
       try {
             const res = await login(loginForm)
-            userStore.setToken(res.data.token)
-            userStore.setUserInfo(res.data)
+            userStore.setToken(res.token)
+            userStore.setUserInfo(res)
             ElMessage.success('登录成功')
             const redirect = route.query.redirect || '/home'
             router.push(redirect)

@@ -1,6 +1,7 @@
 /**
  * AI 相关接口
  */
+import request from '@/utils/request'
 
 /**
  * 与 AI 进行流式对话
@@ -106,22 +107,11 @@ export const chatWithAI = async (message, callbacks = {}) => {
  */
 export const identifyFish = async (file) => {
   const formData = new FormData()
-  formData.append('file', file)
+  formData.append('image', file)
 
-  const token = localStorage.getItem('token')
-  const baseURL = 'http://localhost:8080/api'
-
-  const response = await fetch(`${baseURL}/ai/identify-fish`, {
-    method: 'POST',
+  return request.post('/ai/identify-fish', formData, {
     headers: {
-      'Authorization': token ? `Bearer ${token}` : '',
-    },
-    body: formData,
+      'Content-Type': 'multipart/form-data'
+    }
   })
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`)
-  }
-
-  return response.json()
 }

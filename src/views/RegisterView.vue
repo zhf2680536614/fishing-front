@@ -185,8 +185,8 @@ const handleRegister = async () => {
           nickname: registerForm.nickname || registerForm.username,
           phone: registerForm.phone,
         })
-        userStore.setToken(res.data.token)
-        userStore.setUserInfo(res.data)
+        userStore.setToken(res.token)
+        userStore.setUserInfo(res)
         ElMessage.success('注册成功')
         router.push('/home')
       } catch (error) {

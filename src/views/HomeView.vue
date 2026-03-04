@@ -245,7 +245,7 @@
             </div>
             <div class="feature-content">
               <h3 class="feature-title">智能钓点地图</h3>
-              <p class="feature-desc">查看 {{ spotCount }} 个野钓点，包含水质、收费及停车信息</p>
+              <p class="feature-desc">查看野钓点，包含鱼种、收费等信息</p>
             </div>
             <el-icon class="feature-arrow"><ArrowRight /></el-icon>
           </div>
@@ -311,7 +311,6 @@ const router = useRouter()
 
 logApiKeyStatus()
 
-const spotCount = ref(1024)
 const airForceCount = ref(0)
 const todayFishingCount = ref(0)
 const todayTotalWeight = ref(0)
@@ -439,18 +438,24 @@ const loadWeatherAndFishingData = async () => {
       humidity: weather.humidity,
     })
 
+    // 防御性检查
+    if (!fishingResponse) {
+      console.error('获取适钓指数失败，使用默认值')
+      return
+    }
+
     weatherData.value = {
       ...weatherData.value,
       pressureStatus: {
-        type: fishingResponse.pressureStatus.includes('适宜')
+        type: fishingResponse.pressureStatus?.includes('适宜')
           ? 'success'
-          : fishingResponse.pressureStatus.includes('偏低')
+          : fishingResponse.pressureStatus?.includes('偏低')
             ? 'warning'
             : 'info',
-        text: fishingResponse.pressureStatus,
+        text: fishingResponse.pressureStatus || '气压状态未知',
       },
-      fishingScore: fishingResponse.fishingScore,
-      aiAdvice: fishingResponse.aiAdvice,
+      fishingScore: fishingResponse.fishingScore || 75,
+      aiAdvice: fishingResponse.aiAdvice || '暂无AI建议',
     }
     console.log('适钓指数和AI建议更新成功')
   } catch (error) {

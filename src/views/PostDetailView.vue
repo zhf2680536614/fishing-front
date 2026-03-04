@@ -356,11 +356,13 @@ const getFishTypeTag = (species) => {
 }
 
 const goBack = () => {
-  if (post.value && post.value.type === 1) {
-    router.push('/community/air-force')
-  } else {
-    router.push('/community')
-  }
+  // 返回到社区论坛页面，并传递 activeTab 参数
+  router.push({
+    path: '/community',
+    query: {
+      activeTab: post.value && post.value.type === 1 ? 'air-force' : 'fish'
+    }
+  })
 }
 
 onMounted(() => {
@@ -412,9 +414,9 @@ onMounted(() => {
 }
 
 .container {
-  max-width: 1200px;
+  width: 90%;
   margin: 0 auto;
-  padding: 4vh 2vw;
+  padding: 2vh 1vw;
 }
 
 .loading-wrapper {
@@ -657,7 +659,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3vh 0;
+  padding: 0.5vh 0;
   border-top: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
   gap: 2vw;
@@ -669,7 +671,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.5vh;
   cursor: pointer;
-  padding: 1vh 2vw;
+  padding: 0vh 2vw;
   border-radius: var(--radius-md);
   transition: all 0.3s;
 
