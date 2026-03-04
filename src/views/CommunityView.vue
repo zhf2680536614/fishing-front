@@ -508,11 +508,14 @@ const getFishTypeTag = (species) => {
 
 <style lang="scss" scoped>
 .community-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: var(--bg-primary);
 }
 
 .page-header {
+  position: relative;
+  z-index: 1;
   padding: 8vh 0 4vh;
   background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
   color: white;
@@ -531,12 +534,18 @@ const getFishTypeTag = (species) => {
 }
 
 .nav-tabs {
-  background: white;
-  box-shadow: var(--shadow-md);
+  position: relative;
+  z-index: 1;
   margin-bottom: 1vh;
 
   .community-tabs {
+    :deep(.el-tabs) {
+      background: transparent;
+    }
+
     :deep(.el-tabs__header) {
+      background: white;
+      box-shadow: var(--shadow-md);
       border-bottom: 1px solid var(--border-light);
 
       .el-tabs__nav {
@@ -557,10 +566,20 @@ const getFishTypeTag = (species) => {
         }
       }
     }
+
+    :deep(.el-tabs__content) {
+      background: transparent;
+    }
+
+    :deep(.el-tab-pane) {
+      background: transparent;
+    }
   }
 }
 
 .tab-content {
+  position: relative;
+  z-index: 1;
   padding: 1vh 0;
 }
 
@@ -600,6 +619,8 @@ const getFishTypeTag = (species) => {
 }
 
 .posts-list {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 2vh;

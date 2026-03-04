@@ -720,11 +720,14 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .market-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: var(--bg-primary);
 }
 
 .page-header {
+  position: relative;
+  z-index: 1;
   padding: 8vh 0 4vh;
   background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
   color: white;
@@ -743,9 +746,16 @@ onMounted(() => {
 }
 
 .market-tabs {
+  position: relative;
+  z-index: 1;
   margin: 1vh 0;
 
+  :deep(.el-tabs) {
+    background: transparent;
+  }
+
   :deep(.el-tabs__header) {
+    background: white;
     border-bottom: 1px solid var(--border-light);
 
     .el-tabs__nav {
@@ -766,9 +776,15 @@ onMounted(() => {
       }
     }
   }
+
+  :deep(.el-tabs__content) {
+    background: transparent;
+  }
 }
 
 .tab-content {
+  position: relative;
+  z-index: 1;
   padding: 4vh 0;
 }
 

@@ -1867,8 +1867,9 @@ const handleSubmitEquipment = async () => {
 
 <style scoped lang="scss">
 .profile-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
   padding-bottom: 4vh;
 }
 

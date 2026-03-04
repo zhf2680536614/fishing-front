@@ -752,8 +752,9 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .ai-tools-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
   padding-bottom: 20px;
 }
 
@@ -819,15 +820,25 @@ onMounted(() => {
 }
 
 .ai-tools-tabs {
+  position: relative;
+  z-index: 1;
   margin: 20px 0;
+
+  :deep(.el-tabs) {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
 
   :deep(.el-tabs__header) {
     margin-bottom: 0;
     border-bottom: none;
+    background: transparent;
 
     .el-tabs__nav {
       border-radius: 12px 12px 0 0;
       overflow: hidden;
+      background: white;
     }
 
     .el-tabs__item {
@@ -846,28 +857,37 @@ onMounted(() => {
         .el-icon {
           font-size: 18px;
         }
+
+        span {
+          font-size: 15px;
+        }
       }
 
       &.is-active {
-        background: #667eea;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
+
+        .tab-label {
+          color: white;
+        }
       }
 
       &:hover:not(.is-active) {
         color: #667eea;
-        background: rgba(102, 126, 234, 0.1);
+        background: rgba(102, 126, 234, 0.05);
       }
     }
   }
 
   :deep(.el-tabs__content) {
-    background: white;
+    background: transparent;
     border-radius: 0 0 12px 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   }
 }
 
 .tab-content {
+  position: relative;
+  z-index: 1;
   padding: 20px;
 }
 

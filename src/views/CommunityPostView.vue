@@ -354,16 +354,18 @@ const submitForm = async () => {
 
 <style lang="scss" scoped>
 .community-post-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   padding-bottom: 60px;
 }
 
 .page-header {
+  position: relative;
+  z-index: 1;
   background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
   color: white;
   padding: 40px 0 60px;
-  position: relative;
   overflow: hidden;
 
   &::before {

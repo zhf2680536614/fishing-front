@@ -539,11 +539,14 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .map-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: var(--bg-primary);
 }
 
 .page-header {
+  position: relative;
+  z-index: 1;
   padding: 8vh 0 4vh;
   background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
   color: white;
@@ -562,6 +565,8 @@ onUnmounted(() => {
 }
 
 .search-section {
+  position: relative;
+  z-index: 1;
   background: white;
   padding: 4vh 0;
   box-shadow: var(--shadow-md);
@@ -641,6 +646,7 @@ onUnmounted(() => {
 
 .map-container {
   position: relative;
+  z-index: 1;
   height: 80vh;
   margin: 4vh 0;
 
@@ -939,6 +945,8 @@ onUnmounted(() => {
 }
 
 .spots-list-section {
+  position: relative;
+  z-index: 1;
   padding: 0.1vh 0;
 
   .section-title {

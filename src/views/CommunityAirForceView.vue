@@ -301,16 +301,18 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .air-force-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: linear-gradient(180deg, #fef2f2 0%, #f9fafb 100%);
   padding-bottom: 60px;
 }
 
 .page-header {
+  position: relative;
+  z-index: 1;
   background: linear-gradient(135deg, #ef4444, #f87171);
   color: white;
   padding: 40px 0 60px;
-  position: relative;
   overflow: hidden;
 
   &::before {

@@ -372,11 +372,14 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .post-detail-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
 .back-nav {
+  position: relative;
+  z-index: 1;
   background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 1.5vh 0;
@@ -414,6 +417,8 @@ onMounted(() => {
 }
 
 .container {
+  position: relative;
+  z-index: 1;
   width: 90%;
   margin: 0 auto;
   padding: 2vh 1vw;
@@ -427,6 +432,8 @@ onMounted(() => {
 }
 
 .post-detail {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 3vh;

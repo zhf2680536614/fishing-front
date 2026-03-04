@@ -305,17 +305,22 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .gear-detail-page {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
   padding: 3vh 0;
 }
 
 .container {
+  position: relative;
+  z-index: 1;
   width: 85%;
   margin: 0 auto;
 }
 
 .page-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   margin-bottom: 3vh;
@@ -340,6 +345,8 @@ onMounted(() => {
 }
 
 .gear-detail {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 3vh;
