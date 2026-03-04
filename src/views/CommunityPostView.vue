@@ -184,9 +184,12 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createPost } from '@/api/post'
 import { uploadPostImage } from '@/api/file'
+import { getProfile } from '@/api/user'
 import ImagePreview from '@/components/common/ImagePreview.vue'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // 表单数据
 const formData = ref({
@@ -308,7 +311,22 @@ const submitForm = async () => {
     const result = await createPost(submitData)
     console.log('发布成功:', result)
 
-    ElMessage.success('战报发布成功！')
+    ElMessage.success('战报发布成功！经验值已增加！')
+    
+    // 重新获取用户信息，更新经验值
+    if (userStore.userInfo?.id) {
+      try {
+        const updatedUserInfo = await getProfile(userStore.userInfo.id)
+        // 合并更新用户信息
+        userStore.setUserInfo({
+          ...userStore.userInfo,
+          ...updatedUserInfo
+        })
+      } catch (error) {
+        console.error('更新用户信息失败:', error)
+      }
+    }
+    
     router.push('/community')
   } catch (error) {
     console.error('发布失败:', error)

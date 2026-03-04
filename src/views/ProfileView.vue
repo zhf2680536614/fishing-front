@@ -13,38 +13,38 @@
       <div class="profile-card">
         <div class="profile-header">
           <div class="avatar-section">
-            <el-avatar :size="120" :src="userInfo.avatar" class="profile-avatar" />
+            <el-avatar :size="120" :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'" class="profile-avatar" />
             <div class="user-basic-info">
               <h2 class="username">{{ userInfo.nickname }}</h2>
               <div class="user-meta">
                 <el-tag v-if="userInfo.isMaster" type="success" effect="dark">钓鱼大师</el-tag>
                 <span class="level">Lv.{{ userInfo.level }}</span>
-                <span class="exp">经验值: {{ userInfo.exp }}/{{ userInfo.nextLevelExp }}</span>
+                <span class="exp">经验值: {{ userInfo.expPoints }}/{{ getNextLevelExp(userInfo.expPoints) }}</span>
               </div>
-              <p class="signature">{{ userInfo.signature }}</p>
+              <p class="signature">{{ userInfo.signature || '暂无个性签名' }}</p>
             </div>
           </div>
           <div class="profile-actions">
-            <el-button type="primary">
+            <el-button type="primary" @click="handleEditProfile">
               <el-icon><Edit /></el-icon> 编辑资料
             </el-button>
           </div>
         </div>
         <div class="profile-stats">
           <div class="stat-item">
-            <div class="stat-number">{{ userStats.fishingDays }}</div>
+            <div class="stat-number">{{ userInfo.fishingDays }}</div>
             <div class="stat-label">出钓天数</div>
           </div>
           <div class="stat-item">
-            <div class="stat-number">{{ userStats.totalWeight }}kg</div>
+            <div class="stat-number">{{ userInfo.totalFishWeight }}kg</div>
             <div class="stat-label">总鱼获</div>
           </div>
           <div class="stat-item">
-            <div class="stat-number">{{ userStats.airForceCount }}</div>
+            <div class="stat-number">{{ userInfo.airForceCount }}</div>
             <div class="stat-label">空军次数</div>
           </div>
           <div class="stat-item">
-            <div class="stat-number">{{ userStats.medals.length }}</div>
+            <div class="stat-number">{{ userInfo.badgeCount }}</div>
             <div class="stat-label">获得勋章</div>
           </div>
         </div>
@@ -52,50 +52,237 @@
 
       <!-- 功能标签页 -->
       <el-tabs v-model="activeTab" class="profile-tabs">
-        <el-tab-pane label="数字钓箱" name="equipment">
+        <el-tab-pane label="闲置装备" name="equipment">
           <div class="tab-content">
+            <div class="equipment-toolbar">
+              <div class="search-box">
+                <el-input
+                  v-model="equipmentSearchKeyword"
+                  placeholder="搜索装备名称"
+                  :prefix-icon="Search"
+                  clearable
+                  @clear="handleSearchEquipment"
+                  @keyup.enter="handleSearchEquipment"
+                  size="large"
+                />
+              </div>
+              <div class="batch-actions">
+                <el-checkbox v-model="selectAllEquipment" @change="handleSelectAllEquipment">全选</el-checkbox>
+                <el-button
+                  type="danger"
+                  :icon="Delete"
+                  :disabled="selectedEquipment.length === 0"
+                  @click="handleBatchDeleteEquipment"
+                >
+                  批量删除
+                </el-button>
+              </div>
+            </div>
             <div class="equipment-list">
-              <div v-for="item in equipmentList" :key="item.id" class="equipment-item">
-                <div class="equipment-image">
-                  <img :src="item.image" alt="装备图片" />
+              <div v-for="item in filteredEquipment" :key="item.id" class="equipment-item">
+                <div class="equipment-checkbox">
+                  <el-checkbox v-model="item.selected" @change="handleEquipmentSelect" />
                 </div>
-                <div class="equipment-info">
-                  <h3 class="equipment-name">{{ item.name }}</h3>
-                  <p class="equipment-desc">{{ item.description }}</p>
-                  <div class="equipment-meta">
-                    <span class="equipment-brand">{{ item.brand }}</span>
-                    <span class="equipment-price">¥{{ item.price }}</span>
+                <div class="equipment-image">
+                  <el-carousel 
+                    v-if="item.images && item.images.length > 0" 
+                    height="180px" 
+                    indicator-position="outside"
+                    :autoplay="false"
+                    arrow="hover"
+                  >
+                    <el-carousel-item v-for="(img, index) in item.images" :key="index">
+                      <img 
+                        :src="img" 
+                        alt="装备图片" 
+                        @click="handlePreviewImages(item.images, index)"
+                        class="carousel-image"
+                      />
+                    </el-carousel-item>
+                  </el-carousel>
+                  <div v-else class="no-image">
+                    <el-icon :size="48"><Picture /></el-icon>
+                    <span>暂无图片</span>
+                  </div>
+                  <div class="equipment-status-tag" :class="getStatusClass(item.status)">
+                    {{ item.status === 0 ? '在售' : item.status === 1 ? '已售出' : '已下架' }}
+                  </div>
+                </div>
+                <div class="equipment-content">
+                  <div class="equipment-info">
+                    <h3 class="equipment-name">{{ item.title }}</h3>
+                    <p class="equipment-desc">{{ item.description }}</p>
+                    <div class="equipment-meta">
+                      <span class="equipment-price">¥{{ item.price }}</span>
+                      <span v-if="item.originalPrice" class="original-price">¥{{ item.originalPrice }}</span>
+                    </div>
+                  </div>
+                  <div class="equipment-actions">
+                    <el-button circle size="small" @click="handleEditEquipment(item)" title="编辑">
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                    <el-button 
+                      circle
+                      size="small" 
+                      :type="item.status === 0 ? 'warning' : 'primary'" 
+                      @click="handleUpdateStatus(item.id, item.status === 0 ? 2 : 0)"
+                      :title="item.status === 0 ? '下架' : '上架'"
+                    >
+                      <el-icon v-if="item.status === 0"><Bottom /></el-icon>
+                      <el-icon v-else><Top /></el-icon>
+                    </el-button>
+                    <el-button circle size="small" type="danger" @click="handleDeleteEquipment(item.id)" title="删除">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
                   </div>
                 </div>
               </div>
             </div>
-            <el-button type="primary" class="add-equipment-btn">
-              <el-icon><Plus /></el-icon> 添加装备
+            <div v-if="filteredEquipment.length === 0" class="empty-equipment">
+              <el-empty description="暂无闲置装备" />
+            </div>
+            <el-button type="primary" class="add-equipment-btn" @click="handleAddEquipment">
+              <el-icon><Plus /></el-icon> 添加闲置装备
             </el-button>
           </div>
         </el-tab-pane>
         <el-tab-pane label="勋章墙" name="medals">
           <div class="tab-content">
-            <div class="medals-grid">
-              <div v-for="medal in userStats.medals" :key="medal.id" class="medal-item">
-                <div class="medal-icon">
-                  <el-icon :size="48">{{ medal.icon }}</el-icon>
+            <div class="medals-section">
+              <h3 class="section-title">已获得的勋章</h3>
+              <div v-if="obtainedMedals.length > 0" class="medals-grid">
+                <div v-for="(medal, index) in obtainedMedals" :key="index" class="medal-item">
+                  <div class="medal-icon">
+                    <img :src="medal.badgeIcon" :alt="medal.badgeName" class="medal-img" />
+                  </div>
+                  <h4 class="medal-name">{{ medal.badgeName }}</h4>
+                  <p class="medal-desc">{{ medal.description }}</p>
+                  <span class="medal-date">{{ formatDate(medal.obtainDate) }}</span>
                 </div>
-                <h4 class="medal-name">{{ medal.name }}</h4>
-                <p class="medal-desc">{{ medal.description }}</p>
-                <span class="medal-date">{{ medal.obtainDate }}</span>
               </div>
-              <div
-                class="medal-item locked"
-                v-for="(lockedMedal, index) in lockedMedals"
-                :key="index"
-              >
-                <div class="medal-icon locked">
-                  <el-icon :size="48"><Lock /></el-icon>
+              <div v-else class="empty-medals">
+                <el-empty description="暂未获得任何勋章" />
+              </div>
+            </div>
+            
+            <div class="medals-section">
+              <h3 class="section-title">待解锁的勋章</h3>
+              <div v-if="unobtainedMedals.length > 0" class="medals-grid">
+                <div
+                  class="medal-item locked"
+                  v-for="(medal, index) in unobtainedMedals"
+                  :key="index"
+                >
+                  <div class="medal-icon locked">
+                    <img :src="medal.badgeIcon" :alt="medal.badgeName" class="medal-img locked" />
+                  </div>
+                  <h4 class="medal-name">{{ medal.badgeName }}</h4>
+                  <p class="medal-desc">{{ medal.description }}</p>
+                  <span class="medal-requirement">{{ getRequirementText(medal) }}</span>
                 </div>
-                <h4 class="medal-name">{{ lockedMedal.name }}</h4>
-                <p class="medal-desc">{{ lockedMedal.description }}</p>
-                <span class="medal-requirement">{{ lockedMedal.requirement }}</span>
+              </div>
+              <div v-else class="empty-medals">
+                <el-empty description="已获得所有勋章" />
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="我的订单" name="orders">
+          <div class="tab-content">
+            <div class="orders-content">
+              <div class="orders-toolbar">
+                <div class="search-box">
+                  <el-input
+                    v-model="orderSearchKeyword"
+                    placeholder="搜索订单号或商品名称"
+                    :prefix-icon="Search"
+                    clearable
+                    @clear="handleSearchOrders"
+                    @keyup.enter="handleSearchOrders"
+                    size="large"
+                  />
+                </div>
+                <div class="batch-actions">
+                  <el-checkbox v-model="selectAllOrders" @change="handleSelectAll">全选</el-checkbox>
+                  <el-button
+                    type="danger"
+                    :icon="Delete"
+                    :disabled="selectedOrders.length === 0"
+                    @click="handleBatchDelete"
+                  >
+                    批量删除
+                  </el-button>
+                </div>
+              </div>
+              <div v-if="filteredOrders.length > 0" class="orders-list">
+                <div v-for="order in filteredOrders" :key="order.id" class="order-item">
+                  <div class="order-header">
+                    <div class="order-info">
+                      <el-checkbox v-model="order.selected" @change="handleOrderSelect" />
+                      <span class="order-id">订单号：{{ order.id }}</span>
+                      <span class="order-time">{{ formatTime(order.createTime) }}</span>
+                    </div>
+                    <el-tag :type="getStatusType(order.status)" size="small">
+                      {{ order.statusText }}
+                    </el-tag>
+                  </div>
+                  <div class="order-body">
+                    <div class="order-gear">
+                      <div class="gear-images" v-if="order.gearImages">
+                        <div
+                          v-for="(img, index) in getGearImages(order.gearImages)"
+                          :key="index"
+                          class="gear-image"
+                          @click="handlePreviewImage(order.gearImages, index)"
+                        >
+                          <img :src="img" :alt="`装备图片 ${index + 1}`" />
+                        </div>
+                      </div>
+                      <div class="gear-info">
+                        <div class="gear-title">{{ order.gearTitle }}</div>
+                        <div class="gear-price">¥{{ order.gearPrice }}</div>
+                      </div>
+                    </div>
+                    <div class="order-total">
+                      <span class="total-label">实付金额：</span>
+                      <span class="total-amount">¥{{ order.totalAmount }}</span>
+                    </div>
+                  </div>
+                  <div class="order-footer">
+                    <div class="order-info-footer">
+                      <div class="order-address">
+                        <el-icon><Location /></el-icon>
+                        {{ order.address }}
+                      </div>
+                      <div class="order-phone">
+                        <el-icon><Phone /></el-icon>
+                        {{ order.contactPhone }}
+                      </div>
+                    </div>
+                    <div class="order-actions">
+                      <el-button
+                        v-if="order.status === 0"
+                        type="primary"
+                        size="small"
+                        @click="handleConfirmPayment(order.id)"
+                      >
+                        确认付款
+                      </el-button>
+                      <el-button
+                        v-if="order.status !== 2"
+                        type="danger"
+                        size="small"
+                        :icon="Delete"
+                        @click="handleDeleteOrder(order.id)"
+                      >
+                        删除
+                      </el-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="empty-orders">
+                <el-empty description="暂无订单" />
               </div>
             </div>
           </div>
@@ -104,21 +291,45 @@
           <div class="tab-content">
             <div class="stats-grid">
               <div class="stat-card">
-                <h3>年度出勤率</h3>
+                <div class="stat-card-header">
+                  <div class="stat-icon attendance-icon">
+                    <el-icon><Calendar /></el-icon>
+                  </div>
+                  <div class="stat-title-wrapper">
+                    <h3>每月出钓率</h3>
+                    <p class="stat-subtitle">最近12个月出勤统计</p>
+                  </div>
+                </div>
                 <div class="chart-container">
-                  <div id="attendanceChart" class="chart"></div>
+                  <div ref="attendanceChartRef" class="chart"></div>
                 </div>
               </div>
               <div class="stat-card">
-                <h3>鱼获总重量趋势</h3>
+                <div class="stat-card-header">
+                  <div class="stat-icon weight-icon">
+                    <el-icon><Timer /></el-icon>
+                  </div>
+                  <div class="stat-title-wrapper">
+                    <h3>鱼获总重量趋势</h3>
+                    <p class="stat-subtitle">最近15天鱼获统计（斤）</p>
+                  </div>
+                </div>
                 <div class="chart-container">
-                  <div id="weightChart" class="chart"></div>
+                  <div ref="weightChartRef" class="chart"></div>
                 </div>
               </div>
               <div class="stat-card">
-                <h3>空军率分析</h3>
+                <div class="stat-card-header">
+                  <div class="stat-icon airforce-icon">
+                    <el-icon><Cloudy /></el-icon>
+                  </div>
+                  <div class="stat-title-wrapper">
+                    <h3>每月空军率</h3>
+                    <p class="stat-subtitle">最近12个月空军统计</p>
+                  </div>
+                </div>
                 <div class="chart-container">
-                  <div id="airForceChart" class="chart"></div>
+                  <div ref="airForceChartRef" class="chart"></div>
                 </div>
               </div>
             </div>
@@ -210,104 +421,403 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 编辑资料对话框 -->
+    <el-dialog
+      v-model="editDialogVisible"
+      title="编辑个人资料"
+      width="650px"
+      :close-on-click-modal="false"
+      class="edit-profile-dialog"
+    >
+      <el-form :model="editForm" label-width="90px" class="edit-form">
+        <el-form-item label="昵称">
+          <el-input 
+            v-model="editForm.nickname" 
+            placeholder="请输入昵称"
+            maxlength="20"
+            show-word-limit
+            size="large"
+          />
+        </el-form-item>
+        <el-form-item label="头像">
+          <div class="avatar-upload-wrapper">
+            <el-upload
+              class="avatar-uploader"
+              action="#"
+              :auto-upload="false"
+              :show-file-list="false"
+              :on-change="handleAvatarChange"
+              :before-upload="beforeAvatarUpload"
+            >
+              <img v-if="editForm.avatar" :src="editForm.avatar" class="avatar" />
+              <div v-else class="avatar-placeholder">
+                <el-icon class="avatar-icon"><Plus /></el-icon>
+                <span class="avatar-text">上传头像</span>
+              </div>
+            </el-upload>
+            <div class="avatar-tip">
+              <el-icon><InfoFilled /></el-icon>
+              支持 JPG/PNG 格式，大小不超过 10MB
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input 
+            v-model="editForm.phone" 
+            placeholder="请输入手机号"
+            maxlength="11"
+            size="large"
+          />
+        </el-form-item>
+        <el-form-item label="个性签名">
+          <el-input
+            v-model="editForm.signature"
+            type="textarea"
+            :rows="4"
+            placeholder="写一句个性签名，展示你的钓鱼态度"
+            maxlength="200"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button size="large" @click="editDialogVisible = false">
+            <el-icon><Close /></el-icon> 取消
+          </el-button>
+          <el-button type="primary" size="large" @click="handleUpdateProfile">
+            <el-icon><Check /></el-icon> 保存修改
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 图片预览组件 -->
+    <ImagePreview
+      v-model:visible="previewVisible"
+      :images="previewImages"
+      :initial-index="previewInitialIndex"
+    />
+
+    <!-- 闲置装备编辑对话框 -->
+    <el-dialog
+      v-model="equipmentDialogVisible"
+      :title="equipmentDialogTitle"
+      width="800px"
+    >
+      <div class="dialog-header">
+          <div class="header-left">
+            <h2 class="dialog-title">{{ equipmentDialogTitle }}</h2>
+            <p class="dialog-subtitle">让你的闲置装备找到新主人</p>
+          </div>
+          <div class="header-icon">
+            <el-icon><ShoppingBag /></el-icon>
+          </div>
+        </div>
+
+        <div class="dialog-content">
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">✦</span>
+              商品标题
+            </label>
+            <input
+              v-model="equipmentForm.title"
+              type="text"
+              class="custom-input"
+              placeholder="请输入商品标题，如：9成新达亿瓦波纹鲤4.5米"
+              maxlength="100"
+            />
+            <div class="input-hint">{{ equipmentForm.title.length }}/100</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label class="form-label">
+                <span class="label-icon">✦</span>
+                装备分类
+              </label>
+              <div class="select-wrapper">
+                <select v-model="equipmentForm.category" class="custom-select">
+                  <option value="">请选择分类</option>
+                  <option value="rod">🐟 鱼竿</option>
+                  <option value="box">📦 钓箱</option>
+                  <option value="bait">🦗 饵料</option>
+                  <option value="other">📿 其他</option>
+                </select>
+                <el-icon class="select-arrow"><ArrowDown /></el-icon>
+              </div>
+            </div>
+
+            <div class="form-group half">
+              <label class="form-label">
+                <span class="label-icon">✦</span>
+                商品价格
+              </label>
+              <div class="price-input-wrapper">
+                <span class="currency">¥</span>
+                <input
+                  v-model.number="equipmentForm.price"
+                  type="number"
+                  class="custom-input price-input"
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label optional">
+              <span class="label-icon">✦</span>
+              原价（选填）
+            </label>
+            <div class="price-input-wrapper">
+              <span class="currency">¥</span>
+              <input
+                v-model.number="equipmentForm.originalPrice"
+                type="number"
+                class="custom-input price-input"
+                placeholder="0"
+                min="0"
+              />
+              <span class="price-hint">填写原价可显示折扣标签</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">✦</span>
+              商品描述
+            </label>
+            <textarea
+              v-model="equipmentForm.description"
+              class="custom-textarea"
+              placeholder="请描述商品的新旧程度、使用情况、配件信息等，让买家更了解商品"
+              maxlength="500"
+            ></textarea>
+            <div class="input-hint">{{ equipmentForm.description.length }}/500</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">✦</span>
+              装备图片
+            </label>
+            <div class="upload-section">
+              <div class="upload-grid">
+                <div
+                  v-for="(img, index) in equipmentForm.images"
+                  :key="index"
+                  class="upload-image-item"
+                >
+                  <img :src="img" alt="装备图片" />
+                  <div class="image-actions">
+                    <span class="delete-btn" @click="handleRemoveImage(index)">
+                      <el-icon><Delete /></el-icon>
+                    </span>
+                  </div>
+                  <span v-if="index === 0" class="cover-tag">封面</span>
+                </div>
+                
+                <div v-if="equipmentForm.images.length < 9" class="upload-trigger" @click="handleSelectImage">
+                  <div class="trigger-content">
+                    <el-icon class="upload-icon"><Plus /></el-icon>
+                    <span>上传图片</span>
+                    <span class="upload-count">{{ equipmentForm.images.length }}/9</span>
+                  </div>
+                </div>
+              </div>
+              <p class="upload-tip">建议上传真实实物照片，前一张将作为封面图</p>
+            </div>
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept="image/*"
+              multiple
+              style="display: none"
+              @change="handleFileChange"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">✦</span>
+              状态
+            </label>
+            <div class="status-selector">
+              <el-radio-group v-model="equipmentForm.status">
+                <el-radio :label="0">在售</el-radio>
+                <el-radio :label="1">已售出</el-radio>
+                <el-radio :label="2">已下架</el-radio>
+              </el-radio-group>
+            </div>
+          </div>
+        </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <div class="footer-hint">
+            <span class="hint-icon">💡</span>
+            完善信息有助于提高曝光率
+          </div>
+          <div class="footer-actions">
+            <el-button class="cancel-btn" @click="equipmentDialogVisible = false">取消</el-button>
+            <el-button 
+              type="primary" 
+              class="submit-btn" 
+              @click="handleSubmitEquipment"
+            >
+              <el-icon><Check /></el-icon>
+              {{ equipmentForm.id ? '保存修改' : '添加装备' }}
+            </el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { Edit, Plus, Lock, Trophy, Calendar, Star, Location, Cpu } from '@element-plus/icons-vue'
+import { ref, onMounted, watch, computed, nextTick } from 'vue'
+import { Edit, Plus, Lock, Trophy, Calendar, Star, Location, Cpu, Close, Check, InfoFilled, Phone, Search, Delete, Select, Picture, Timer, Cloudy, Top, Bottom } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import * as addressApi from '@/api/address'
+import * as userApi from '@/api/user'
+import * as fishingStatsApi from '@/api/fishing-stats'
+import { uploadUserAvatar, uploadPostImage } from '@/api/file'
+import { getUserOrders, confirmPayment, deleteOrder, batchDeleteOrders, createGearMarket, updateGearMarket, deleteGearMarket, updateGearMarketStatus, getUserGearList } from '@/api/gear'
 import MapSelector from '@/components/common/MapSelector.vue'
+import ImagePreview from '@/components/common/ImagePreview.vue'
+import PublishGearDialog from '@/components/business/PublishGearDialog.vue'
+import { useUserStore } from '@/stores/user'
+import { formatDateTime } from '@/utils/format'
+import * as echarts from 'echarts'
 
-// 响应式数据
-const activeTab = ref('equipment')
 const router = useRouter()
+const userStore = useUserStore()
+
+// 当前激活的标签页
+const activeTab = ref('equipment')
 
 // 用户信息
 const userInfo = ref({
-  nickname: '钓鱼佬007',
-  avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-  signature: '从不空军，只是在喂鱼。',
-  isMaster: true,
-  level: 8,
-  exp: 1250,
-  nextLevelExp: 2000,
+  id: '',
+  nickname: '',
+  avatar: '',
+  signature: '',
+  isMaster: 0,
+  level: 1,
+  expPoints: 0,
+  fishingDays: 0,
+  totalFishWeight: 0,
+  airForceCount: 0,
+  badgeCount: 0
 })
 
-// 用户统计数据
-const userStats = ref({
-  fishingDays: 128,
-  totalWeight: 356.8,
-  airForceCount: 42,
-  medals: [
-    {
-      id: 1,
-      name: '永不空军',
-      description: '连续5次有鱼获',
-      icon: Trophy,
-      obtainDate: '2024-01-10',
-    },
-    {
-      id: 2,
-      name: '路亚大师',
-      description: '成功钓到10条翘嘴',
-      icon: Star,
-      obtainDate: '2024-01-05',
-    },
-    {
-      id: 3,
-      name: '坚持者',
-      description: '连续30天出钓',
-      icon: Calendar,
-      obtainDate: '2024-01-01',
-    },
-  ],
+// 订单列表
+const orders = ref([])
+const orderSearchKeyword = ref('')
+const selectAllOrders = ref(false)
+const selectedOrders = ref([])
+
+// 图片预览
+const previewVisible = ref(false)
+const previewImages = ref([])
+const previewInitialIndex = ref(0)
+
+// 图表相关
+const attendanceChartRef = ref(null)
+const weightChartRef = ref(null)
+const airForceChartRef = ref(null)
+let attendanceChart = null
+let weightChart = null
+let airForceChart = null
+
+// 钓鱼统计数据
+const fishingStats = ref({
+  monthlyFishingRates: [],
+  dailyFishWeights: [],
+  monthlyAirForceRates: []
 })
 
-// 锁定的勋章
-const lockedMedals = ref([
-  {
-    name: '空军司令',
-    description: '连续10次空军',
-    requirement: '还需7次空军',
-  },
-  {
-    name: '巨物猎手',
-    description: '钓到20斤以上的鱼',
-    requirement: '还需15斤',
-  },
-])
+// 过滤后的订单
+const filteredOrders = computed(() => {
+  if (!orderSearchKeyword.value) {
+    return orders.value
+  }
+  const keyword = orderSearchKeyword.value.toLowerCase()
+  return orders.value.filter(order => 
+    order.id.toString().includes(keyword) || 
+    order.gearTitle.toLowerCase().includes(keyword)
+  )
+})
 
-// 装备列表
-const equipmentList = ref([
-  {
-    id: 1,
-    name: '达亿瓦波纹鲤 4.5米',
-    description: '日本进口，腰力好，适合钓大型鱼类',
-    brand: '达亿瓦',
-    price: 1299,
-    image:
-      'https://images.unsplash.com/photo-1579098382271-091f68b2226b?w=800&auto=format&fit=crop',
-  },
-  {
-    id: 2,
-    name: '钓箱',
-    description: '带升降脚，多功能钓箱',
-    brand: '连球',
-    price: 599,
-    image: 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800&auto=format&fit=crop',
-  },
-  {
-    id: 3,
-    name: '钓鱼伞',
-    description: '2.2米，防紫外线',
-    brand: '美人鱼',
-    price: 150,
-    image: 'https://images.unsplash.com/photo-1557800636-894a64c1696f?w=800&auto=format&fit=crop',
-  },
-])
+// 勋章数据
+const obtainedMedals = ref([])
+const unobtainedMedals = ref([])
+
+// 格式化时间
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+// 加载用户勋章数据
+const loadUserBadges = async () => {
+  try {
+    const userId = userStore.userInfo?.id
+    if (!userId) {
+      return
+    }
+    const response = await userApi.getUserBadges(userId)
+    obtainedMedals.value = response.obtained || []
+    unobtainedMedals.value = response.unobtained || []
+  } catch (error) {
+    ElMessage.error('加载勋章数据失败')
+  }
+}
+
+// 闲置装备相关
+const equipmentList = ref([])
+const equipmentSearchKeyword = ref('')
+const selectAllEquipment = ref(false)
+const selectedEquipment = ref([])
+
+// 装备编辑对话框
+const equipmentDialogVisible = ref(false)
+const equipmentDialogTitle = ref('添加闲置装备')
+const fileInputRef = ref(null)
+const equipmentForm = ref({
+  id: null,
+  title: '',
+  description: '',
+  price: null,
+  originalPrice: null,
+  images: [],
+  category: '',
+  status: 0
+})
+
+// 过滤后的装备
+const filteredEquipment = computed(() => {
+  if (!equipmentSearchKeyword.value) {
+    return equipmentList.value
+  }
+  const keyword = equipmentSearchKeyword.value.toLowerCase()
+  return equipmentList.value.filter(item => 
+    item.title.toLowerCase().includes(keyword) ||
+    item.brand.toLowerCase().includes(keyword)
+  )
+})
 
 // 地址管理相关
 const addresses = ref([])
@@ -324,12 +834,20 @@ const form = ref({
   isDefault: 0
 })
 
+// 编辑资料相关
+const editDialogVisible = ref(false)
+const editForm = ref({
+  nickname: '',
+  avatar: '',
+  phone: '',
+  signature: ''
+})
+
 // 初始化图表
 onMounted(() => {
-  // 模拟图表初始化
-  // 实际项目中会使用 ECharts
-  initCharts()
-  
+  // 加载用户个人中心数据
+  loadUserProfile()
+
   // 检查是否有从其他页面跳转过来的标签页标记
   const savedTab = localStorage.getItem('activeProfileTab')
   if (savedTab) {
@@ -339,32 +857,440 @@ onMounted(() => {
       loadAddresses()
     }
   }
-})
 
-// 监听标签页变化，当切换到地址标签页时加载地址列表
-watch(activeTab, (newTab) => {
-  if (newTab === 'address') {
-    loadAddresses()
+  // 如果当前是闲置装备标签页，立即加载装备列表
+  if (activeTab.value === 'equipment') {
+    loadEquipmentList()
   }
 })
 
+// 获取需求文本
+const getRequirementText = (medal) => {
+  switch (medal.requirementType) {
+    case 'fishing_days':
+      return `需要出钓 ${medal.requirementValue} 天`
+    case 'fish_days':
+      return `需要有鱼获 ${medal.requirementValue} 天`
+    case 'air_force_days':
+      return `需要空军 ${medal.requirementValue} 天`
+    case 'total_weight':
+      return `需要累计鱼获 ${medal.requirementValue} 斤`
+    default:
+      return '未知需求'
+  }
+}
+
+// 监听标签页变化
+watch(activeTab, (newTab) => {
+  if (newTab === 'address') {
+    loadAddresses()
+  } else if (newTab === 'orders') {
+    loadOrders()
+  } else if (newTab === 'stats') {
+    // 切换到数据统计标签页时，加载统计数据并初始化图表
+    loadFishingStats().then(() => {
+      nextTick(() => {
+        initCharts()
+      })
+    })
+  } else if (newTab === 'medals') {
+    // 切换到勋章墙标签页时，加载勋章数据
+    loadUserBadges()
+  } else if (newTab === 'equipment') {
+    // 切换到闲置装备标签页时，加载装备数据
+    loadEquipmentList()
+  }
+})
+
+// 加载钓鱼统计数据
+const loadFishingStats = async () => {
+  try {
+    const userId = userStore.userInfo?.id
+    if (!userId) {
+      return
+    }
+    const response = await fishingStatsApi.getFishingStats(userId)
+    fishingStats.value = response
+  } catch (error) {
+    ElMessage.error('加载钓鱼统计数据失败')
+  }
+}
+
 // 初始化图表
 const initCharts = () => {
-  // 这里可以集成 ECharts
-  // 由于是模拟环境，我们只创建占位符
-  const charts = ['attendanceChart', 'weightChart', 'airForceChart']
-  charts.forEach((chartId) => {
-    const chartElement = document.getElementById(chartId)
-    if (chartElement) {
-      chartElement.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-light); font-size: 0.9rem;">
-          <el-icon style="font-size: 2rem; margin-bottom: 10px; display: block; color: var(--primary-color);"><Cpu /></el-icon>
-          <p>图表加载中...</p>
-          <p style="font-size: 0.8rem; margin-top: 5px;">实际项目中会使用 ECharts</p>
-        </div>
-      `
-    }
+  initAttendanceChart()
+  initWeightChart()
+  initAirForceChart()
+}
+
+// 初始化出钓率图表
+const initAttendanceChart = () => {
+  if (!attendanceChartRef.value) return
+  
+  if (attendanceChart) {
+    attendanceChart.dispose()
+  }
+  
+  attendanceChart = echarts.init(attendanceChartRef.value)
+  
+  const data = fishingStats.value.monthlyFishingRates || []
+  const months = data.map(item => {
+    const [year, month] = item.month.split('-')
+    return `${month}月`
   })
+  const rates = data.map(item => item.rate)
+  
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e0e6ed',
+      borderWidth: 1,
+      textStyle: {
+        color: '#2c3e50'
+      },
+      formatter: function(params) {
+        const item = data[params[0].dataIndex]
+        return `
+          <div style="font-weight:600;margin-bottom:5px">${item.monthName}</div>
+          <div>出钓天数: <span style="color:#667eea;font-weight:600">${item.fishingDays}</span> 天</div>
+          <div>当月天数: ${item.totalDays} 天</div>
+          <div>出钓率: <span style="color:#667eea;font-weight:600">${item.rate}%</span></div>
+        `
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: months,
+      axisLine: {
+        lineStyle: {
+          color: '#e0e6ed'
+        }
+      },
+      axisLabel: {
+        color: '#606266',
+        fontSize: 11
+      },
+      axisTick: {
+        show: false
+      }
+    },
+    yAxis: {
+      type: 'value',
+      max: 100,
+      axisLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      },
+      axisLabel: {
+        color: '#606266',
+        formatter: '{value}%'
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#f0f2f5',
+          type: 'dashed'
+        }
+      }
+    },
+    series: [{
+      name: '出钓率',
+      type: 'bar',
+      data: rates,
+      barWidth: '60%',
+      itemStyle: {
+        borderRadius: [6, 6, 0, 0],
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#667eea' },
+          { offset: 1, color: '#764ba2' }
+        ])
+      },
+      emphasis: {
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#764ba2' },
+            { offset: 1, color: '#667eea' }
+          ])
+        }
+      }
+    }]
+  }
+  
+  attendanceChart.setOption(option)
+}
+
+// 初始化鱼获重量图表
+const initWeightChart = () => {
+  if (!weightChartRef.value) return
+  
+  if (weightChart) {
+    weightChart.dispose()
+  }
+  
+  weightChart = echarts.init(weightChartRef.value)
+  
+  const data = fishingStats.value.dailyFishWeights || []
+  const dates = data.map(item => item.date)
+  const weights = data.map(item => item.totalWeight)
+  
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e0e6ed',
+      borderWidth: 1,
+      textStyle: {
+        color: '#2c3e50'
+      },
+      formatter: function(params) {
+        const item = data[params[0].dataIndex]
+        return `
+          <div style="font-weight:600;margin-bottom:5px">${item.fullDate}</div>
+          <div>鱼获重量: <span style="color:#52c41a;font-weight:600">${item.totalWeight}</span> 斤</div>
+          ${item.hasRecord ? '<div style="color:#52c41a;font-size:12px">✓ 有钓鱼记录</div>' : '<div style="color:#999;font-size:12px">无钓鱼记录</div>'}
+        `
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: dates,
+      axisLine: {
+        lineStyle: {
+          color: '#e0e6ed'
+        }
+      },
+      axisLabel: {
+        color: '#606266',
+        fontSize: 10,
+        rotate: 45
+      },
+      axisTick: {
+        show: false
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      },
+      axisLabel: {
+        color: '#606266',
+        formatter: '{value} 斤'
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#f0f2f5',
+          type: 'dashed'
+        }
+      }
+    },
+    series: [{
+      name: '鱼获重量',
+      type: 'line',
+      data: weights,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 8,
+      lineStyle: {
+        width: 3,
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: '#52c41a' },
+          { offset: 1, color: '#95de64' }
+        ])
+      },
+      itemStyle: {
+        color: '#52c41a',
+        borderWidth: 2,
+        borderColor: '#fff'
+      },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(82, 196, 26, 0.3)' },
+          { offset: 1, color: 'rgba(82, 196, 26, 0.05)' }
+        ])
+      },
+      emphasis: {
+        itemStyle: {
+          color: '#52c41a',
+          borderWidth: 3,
+          borderColor: '#fff',
+          shadowBlur: 10,
+          shadowColor: 'rgba(82, 196, 26, 0.5)'
+        }
+      }
+    }]
+  }
+  
+  weightChart.setOption(option)
+}
+
+// 初始化空军率图表
+const initAirForceChart = () => {
+  if (!airForceChartRef.value) return
+  
+  if (airForceChart) {
+    airForceChart.dispose()
+  }
+  
+  airForceChart = echarts.init(airForceChartRef.value)
+  
+  const data = fishingStats.value.monthlyAirForceRates || []
+  const months = data.map(item => {
+    const [year, month] = item.month.split('-')
+    return `${month}月`
+  })
+  const rates = data.map(item => item.rate)
+  
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e0e6ed',
+      borderWidth: 1,
+      textStyle: {
+        color: '#2c3e50'
+      },
+      formatter: function(params) {
+        const item = data[params[0].dataIndex]
+        return `
+          <div style="font-weight:600;margin-bottom:5px">${item.monthName}</div>
+          <div>出钓次数: <span style="color:#667eea;font-weight:600">${item.totalTrips}</span> 次</div>
+          <div>空军次数: <span style="color:#ff4d4f;font-weight:600">${item.airForceCount}</span> 次</div>
+          <div>空军率: <span style="color:#ff4d4f;font-weight:600">${item.rate}%</span></div>
+        `
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: months,
+      axisLine: {
+        lineStyle: {
+          color: '#e0e6ed'
+        }
+      },
+      axisLabel: {
+        color: '#606266',
+        fontSize: 11
+      },
+      axisTick: {
+        show: false
+      }
+    },
+    yAxis: {
+      type: 'value',
+      max: 100,
+      axisLine: {
+        show: false
+      },
+      axisTick: {
+        show: false
+      },
+      axisLabel: {
+        color: '#606266',
+        formatter: '{value}%'
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#f0f2f5',
+          type: 'dashed'
+        }
+      }
+    },
+    series: [{
+      name: '空军率',
+      type: 'line',
+      data: rates,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 8,
+      lineStyle: {
+        width: 3,
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: '#ff4d4f' },
+          { offset: 1, color: '#ff7875' }
+        ])
+      },
+      itemStyle: {
+        color: function(params) {
+          const rate = params.value
+          if (rate >= 50) return '#ff4d4f'
+          if (rate >= 30) return '#faad14'
+          return '#52c41a'
+        },
+        borderWidth: 2,
+        borderColor: '#fff'
+      },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(255, 77, 79, 0.2)' },
+          { offset: 1, color: 'rgba(255, 77, 79, 0.02)' }
+        ])
+      },
+      emphasis: {
+        itemStyle: {
+          borderWidth: 3,
+          borderColor: '#fff',
+          shadowBlur: 10,
+          shadowColor: 'rgba(255, 77, 79, 0.5)'
+        }
+      }
+    }]
+  }
+  
+  airForceChart.setOption(option)
+}
+
+// 窗口大小改变时重新渲染图表
+const handleResize = () => {
+  attendanceChart?.resize()
+  weightChart?.resize()
+  airForceChart?.resize()
+}
+
+window.addEventListener('resize', handleResize)
+
+// 加载用户个人中心数据
+const loadUserProfile = async () => {
+  try {
+    const userId = userStore.userInfo?.id
+    if (!userId) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+    
+    const response = await userApi.getProfile(userId)
+    userInfo.value = response
+  } catch (error) {
+    ElMessage.error('加载个人中心数据失败')
+  }
 }
 
 // 加载地址列表
@@ -374,6 +1300,236 @@ const loadAddresses = async () => {
     addresses.value = response
   } catch (error) {
     ElMessage.error('加载地址失败')
+  }
+}
+
+// 打开编辑资料对话框
+const handleEditProfile = () => {
+  editForm.value = {
+    nickname: userInfo.value.nickname,
+    avatar: userInfo.value.avatar,
+    phone: userInfo.value.phone,
+    signature: userInfo.value.signature
+  }
+  editDialogVisible.value = true
+}
+
+// 处理头像上传
+const handleAvatarChange = async (file) => {
+  if (!file.raw) return
+
+  const isJpgOrPng = file.raw.type === 'image/jpeg' || file.raw.type === 'image/png'
+  const isLt10M = file.raw.size / 1024 / 1024 < 10
+
+  if (!isJpgOrPng) {
+    ElMessage.error('只能上传 JPG/PNG 图片')
+    return
+  }
+  if (!isLt10M) {
+    ElMessage.error('图片大小不能超过 10MB')
+    return
+  }
+
+  try {
+    const url = await uploadUserAvatar(file.raw)
+    editForm.value.avatar = url
+    ElMessage.success('头像上传成功')
+  } catch (error) {
+    console.error('头像上传失败:', error)
+    ElMessage.error('头像上传失败，请重试')
+  }
+}
+
+// 头像上传前验证
+const beforeAvatarUpload = (file) => {
+  const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png'
+  const isLt10M = file.size / 1024 / 1024 < 10
+
+  if (!isJpgOrPng) {
+    ElMessage.error('只能上传 JPG/PNG 图片')
+  }
+  if (!isLt10M) {
+    ElMessage.error('图片大小不能超过 10MB')
+  }
+  return isJpgOrPng && isLt10M
+}
+
+// 更新个人资料
+const handleUpdateProfile = async () => {
+  try {
+    const userId = userStore.userInfo?.id
+    if (!userId) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+    
+    const response = await userApi.updateProfile(userId, editForm.value)
+    ElMessage.success('资料更新成功')
+    editDialogVisible.value = false
+    loadUserProfile()
+  } catch (error) {
+    ElMessage.error('更新失败，请重试')
+  }
+}
+
+// 计算总经验值上限
+const getNextLevelExp = (currentExp) => {
+  return 10000
+}
+
+// 加载订单列表
+const loadOrders = async () => {
+  try {
+    const userId = userStore.userInfo?.id
+    if (!userId) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+    const response = await getUserOrders(userId)
+    orders.value = response
+  } catch (error) {
+    ElMessage.error('加载订单失败')
+  }
+}
+
+// 格式化时间
+const formatTime = (time) => {
+  return formatDateTime(time)
+}
+
+// 获取订单状态类型
+const getStatusType = (status) => {
+  switch (status) {
+    case 0: return 'warning'
+    case 1: return 'primary'
+    case 2: return 'info'
+    case 3: return 'success'
+    case 4: return 'danger'
+    default: return 'info'
+  }
+}
+
+// 确认付款
+const handleConfirmPayment = async (orderId) => {
+  try {
+    await ElMessageBox.confirm('确认付款后，订单将在30分钟后自动完成', '确认付款', {
+      confirmButtonText: '确认付款',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    await confirmPayment(orderId)
+    ElMessage.success('付款成功')
+    await loadOrders()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('付款失败，请重试')
+    }
+  }
+}
+
+// 获取装备图片
+const getGearImages = (images) => {
+  if (!images) return []
+  if (Array.isArray(images)) return images
+  try {
+    return JSON.parse(images)
+  } catch (e) {
+    return images.split(',').map(img => img.trim()).filter(img => img)
+  }
+}
+
+// 预览图片
+const handlePreviewImage = (images, index) => {
+  previewImages.value = getGearImages(images)
+  previewInitialIndex.value = index
+  previewVisible.value = true
+}
+
+// 预览装备图片
+const handlePreviewImages = (images, index) => {
+  previewImages.value = getGearImages(images)
+  previewInitialIndex.value = index
+  previewVisible.value = true
+}
+
+// 获取状态样式类
+const getStatusClass = (status) => {
+  switch (status) {
+    case 0:
+      return 'status-on-sale'
+    case 1:
+      return 'status-sold'
+    case 2:
+      return 'status-off-sale'
+    default:
+      return 'status-off-sale'
+  }
+}
+
+// 搜索订单
+const handleSearchOrders = () => {
+  // 使用computed属性自动过滤
+}
+
+// 全选/反选
+const handleSelectAll = (checked) => {
+  orders.value.forEach(order => {
+    order.selected = checked
+  })
+  updateSelectedOrders()
+}
+
+// 订单选择变化
+const handleOrderSelect = () => {
+  updateSelectedOrders()
+}
+
+// 更新选中的订单
+const updateSelectedOrders = () => {
+  selectedOrders.value = orders.value.filter(order => order.selected).map(order => order.id)
+  selectAllOrders.value = selectedOrders.value.length === orders.value.length && orders.value.length > 0
+}
+
+// 删除订单
+const handleDeleteOrder = async (orderId) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该订单吗？', '删除订单', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    await deleteOrder(orderId)
+    ElMessage.success('删除成功')
+    await loadOrders()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败，请重试')
+    }
+  }
+}
+
+// 批量删除订单
+const handleBatchDelete = async () => {
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedOrders.value.length} 个订单吗？`, '批量删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    await batchDeleteOrders(selectedOrders.value)
+    ElMessage.success('批量删除成功')
+    await loadOrders()
+    selectAllOrders.value = false
+    selectedOrders.value = []
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('批量删除失败，请重试')
+    }
   }
 }
 
@@ -409,151 +1565,1033 @@ const handleEditAddress = (address) => {
   dialogVisible.value = true
 }
 
-// 提交表单
-const handleSubmit = async () => {
-  // 表单验证
-  if (!form.value.name) {
-    ElMessage.warning('请输入收货人姓名')
-    return
-  }
-  if (!form.value.phone) {
-    ElMessage.warning('请输入联系电话')
-    return
-  }
-  if (!form.value.province || !form.value.city || !form.value.district) {
-    ElMessage.warning('请完善地区信息')
-    return
-  }
-  if (!form.value.detailAddress) {
-    ElMessage.warning('请输入详细地址')
-    return
-  }
-
+// 删除地址
+const handleDeleteAddress = async (id) => {
   try {
+    await ElMessageBox.confirm('确定要删除该地址吗？', '删除地址', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    await addressApi.deleteAddress(id)
+    ElMessage.success('删除成功')
+    await loadAddresses()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+// 设为默认地址
+const handleSetDefault = async (id) => {
+  try {
+    await addressApi.setDefaultAddress(id)
+    ElMessage.success('设置成功')
+    await loadAddresses()
+  } catch (error) {
+    ElMessage.error('设置失败')
+  }
+}
+
+// 提交地址表单
+const handleSubmit = async () => {
+  try {
+    if (!form.value.name || !form.value.phone || !form.value.province || !form.value.city || !form.value.detailAddress) {
+      ElMessage.error('请填写完整的地址信息')
+      return
+    }
+    
+    const addressData = {
+      ...form.value,
+      isDefault: form.value.isDefault ? 1 : 0
+    }
+    
     if (form.value.id) {
-      // 更新地址
-      await addressApi.updateAddress(form.value.id, form.value)
+      await addressApi.updateAddress(form.value.id, addressData)
       ElMessage.success('地址更新成功')
     } else {
-      // 创建地址
-      await addressApi.createAddress(form.value)
+      await addressApi.addAddress(addressData)
       ElMessage.success('地址添加成功')
     }
+    
     dialogVisible.value = false
-    loadAddresses()
+    await loadAddresses()
   } catch (error) {
     ElMessage.error('操作失败，请重试')
   }
 }
 
-// 删除地址
-const handleDeleteAddress = async (id) => {
-  try {
-    await addressApi.deleteAddress(id)
-    ElMessage.success('地址删除成功')
-    loadAddresses()
-  } catch (error) {
-    ElMessage.error('删除失败，请重试')
-  }
-}
-
-// 设置默认地址
-const handleSetDefault = async (id) => {
-  try {
-    await addressApi.setDefaultAddress(id)
-    ElMessage.success('设置默认地址成功')
-    loadAddresses()
-  } catch (error) {
-    ElMessage.error('设置失败，请重试')
-  }
-}
-
 // 处理地图选择地址
-const handleAddressSelect = (address) => {
-  console.log('选择的地址:', address)
-  form.value.province = address.province
-  form.value.city = address.city
-  form.value.district = address.district
-  form.value.detailAddress = address.detailAddress
-  ElMessage.success('地址选择成功')
+const handleAddressSelect = (addressInfo) => {
+  if (addressInfo.province) form.value.province = addressInfo.province
+  if (addressInfo.city) form.value.city = addressInfo.city
+  if (addressInfo.district) form.value.district = addressInfo.district
+  if (addressInfo.address) form.value.detailAddress = addressInfo.address
+}
+
+// 加载闲置装备列表
+const loadEquipmentList = async () => {
+  try {
+    const userId = userStore.userInfo?.id
+    if (!userId) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+    // 调用后端接口获取用户的闲置装备列表
+    const response = await getUserGearList()
+    equipmentList.value = response.map(item => ({
+      ...item,
+      images: item.images || [],
+      selected: false
+    }))
+  } catch (error) {
+    ElMessage.error('加载闲置装备失败')
+  }
+}
+
+// 搜索装备
+const handleSearchEquipment = () => {
+  // 使用computed属性自动过滤
+}
+
+// 全选/反选装备
+const handleSelectAllEquipment = (checked) => {
+  equipmentList.value.forEach(item => {
+    item.selected = checked
+  })
+  updateSelectedEquipment()
+}
+
+// 装备选择变化
+const handleEquipmentSelect = () => {
+  updateSelectedEquipment()
+}
+
+// 更新选中的装备
+const updateSelectedEquipment = () => {
+  selectedEquipment.value = equipmentList.value.filter(item => item.selected).map(item => item.id)
+  selectAllEquipment.value = selectedEquipment.value.length === equipmentList.value.length && equipmentList.value.length > 0
+}
+
+// 添加闲置装备
+const handleAddEquipment = () => {
+  equipmentDialogTitle.value = '添加闲置装备'
+  equipmentForm.value = {
+    id: null,
+    title: '',
+    description: '',
+    brand: '',
+    price: '',
+    images: [],
+    category: '',
+    status: 1
+  }
+  equipmentDialogVisible.value = true
+}
+
+// 编辑闲置装备
+const handleEditEquipment = (item) => {
+  equipmentDialogTitle.value = '编辑闲置装备'
+  equipmentForm.value = {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    price: item.price,
+    originalPrice: item.originalPrice,
+    images: item.images || [],
+    category: item.category,
+    status: item.status
+  }
+  equipmentDialogVisible.value = true
+}
+
+// 删除闲置装备
+const handleDeleteEquipment = async (id) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该闲置装备吗？', '删除装备', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    // 调用后端接口删除装备
+    await deleteGearMarket(id)
+    ElMessage.success('删除成功')
+    await loadEquipmentList()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败，请重试')
+    }
+  }
+}
+
+// 批量删除闲置装备
+const handleBatchDeleteEquipment = async () => {
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedEquipment.value.length} 个闲置装备吗？`, '批量删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    // 调用后端接口批量删除装备
+    for (const id of selectedEquipment.value) {
+      await deleteGearMarket(id)
+    }
+    ElMessage.success('批量删除成功')
+    await loadEquipmentList()
+    selectAllEquipment.value = false
+    selectedEquipment.value = []
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('批量删除失败，请重试')
+    }
+  }
+}
+
+// 更新装备状态（上下架）
+const handleUpdateStatus = async (id, status) => {
+  try {
+    await updateGearMarketStatus(id, status)
+    ElMessage.success(status === 1 ? '上架成功' : '下架成功')
+    await loadEquipmentList()
+  } catch (error) {
+    ElMessage.error('操作失败，请重试')
+  }
+}
+
+// 选择图片
+const handleSelectImage = () => {
+  fileInputRef.value?.click()
+}
+
+// 处理文件选择
+const handleFileChange = async (event) => {
+  const files = event.target.files
+  if (!files || files.length === 0) return
+
+  const remaining = 9 - equipmentForm.value.images.length
+  const filesToUpload = Array.from(files).slice(0, remaining)
+
+  if (filesToUpload.length === 0) {
+    ElMessage.warning('已达到最大上传数量')
+    return
+  }
+
+  try {
+    for (const file of filesToUpload) {
+      const isImage = file.type.startsWith('image/')
+      if (!isImage) {
+        ElMessage.warning('只能上传图片文件')
+        return
+      }
+
+      const isLt10M = file.size / 1024 / 1024 < 10
+      if (!isLt10M) {
+        ElMessage.warning('图片大小不能超过 10MB')
+        return
+      }
+
+      // 调用真实的文件上传接口
+      const imageUrl = await uploadPostImage(file)
+      if (imageUrl) {
+        equipmentForm.value.images.push(imageUrl)
+      }
+    }
+    ElMessage.success('图片上传成功')
+  } catch (error) {
+    console.error('图片上传失败:', error)
+    ElMessage.error('图片上传失败，请重试')
+  }
+
+  event.target.value = ''
+}
+
+// 删除图片
+const handleRemoveImage = (index) => {
+  equipmentForm.value.images.splice(index, 1)
+}
+
+// 提交装备表单
+const handleSubmitEquipment = async () => {
+  try {
+    if (!equipmentForm.value.title.trim()) {
+      ElMessage.warning('请输入商品标题')
+      return
+    }
+    if (!equipmentForm.value.category) {
+      ElMessage.warning('请选择装备分类')
+      return
+    }
+    if (!equipmentForm.value.price || equipmentForm.value.price <= 0) {
+      ElMessage.warning('请输入商品价格')
+      return
+    }
+    if (!equipmentForm.value.description.trim()) {
+      ElMessage.warning('请输入商品描述')
+      return
+    }
+    if (equipmentForm.value.images.length === 0) {
+      ElMessage.warning('请至少上传一张商品图片')
+      return
+    }
+    
+    const equipmentData = {
+      title: equipmentForm.value.title,
+      category: equipmentForm.value.category,
+      price: equipmentForm.value.price,
+      originalPrice: equipmentForm.value.originalPrice,
+      description: equipmentForm.value.description,
+      images: equipmentForm.value.images,
+      status: equipmentForm.value.status
+    }
+    
+    if (equipmentForm.value.id) {
+      await updateGearMarket(equipmentForm.value.id, equipmentData)
+      ElMessage.success('装备更新成功')
+    } else {
+      await createGearMarket(equipmentData)
+      ElMessage.success('装备添加成功')
+    }
+    
+    equipmentDialogVisible.value = false
+    await loadEquipmentList()
+  } catch (error) {
+    ElMessage.error('操作失败，请重试')
+  }
 }
 </script>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 .profile-page {
   min-height: 100vh;
-  background: var(--bg-primary);
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  padding-bottom: 4vh;
 }
 
 .page-header {
-  padding: 8vh 0 4vh;
   background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  padding: 6vh 0;
   color: white;
+  margin-bottom: 4vh;
 
   .page-title {
     font-size: 2.5rem;
-    font-weight: 800;
+    font-weight: 700;
     margin-bottom: 1vh;
-    color: white;
   }
 
   .page-description {
     font-size: 1.1rem;
-    opacity: 0.9;
   }
+}
+
+/* 闲置装备编辑对话框样式 */
+.el-dialog {
+  border-radius: 12px;
+  overflow: hidden;
+
+  .el-dialog__header {
+    padding: 0;
+    margin: 0;
+  }
+  
+  .el-dialog__body {
+    padding: 0;
+  }
+  
+  .el-dialog__footer {
+    padding: 0;
+    border-top: 1px solid #f0f0f0;
+  }
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px 12px 0 0;
+  color: white;
+
+  .header-left {
+    .dialog-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+    }
+
+    .dialog-subtitle {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      margin: 0;
+    }
+  }
+
+  .header-icon {
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .el-icon {
+      font-size: 26px;
+    }
+  }
+}
+
+.dialog-content {
+  padding: 24px 28px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.form-group {
+  margin-bottom: 20px;
+
+  &.half {
+    flex: 1;
+  }
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 10px;
+
+  .label-icon {
+    color: #667eea;
+    font-size: 0.8rem;
+  }
+
+  &.optional {
+    color: #909399;
+    font-weight: 500;
+  }
+}
+
+.custom-input,
+.custom-select,
+.custom-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: #303133;
+  background: #fafafa;
+  transition: all 0.3s;
+  outline: none;
+
+  &:focus {
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+
+  &::placeholder {
+    color: #c0c4cc;
+  }
+}
+
+.custom-textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+.input-hint {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #c0c4cc;
+  margin-top: 6px;
+}
+
+.select-wrapper {
+  position: relative;
+
+  .custom-select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 36px;
+  }
+
+  .select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #909399;
+    pointer-events: none;
+  }
+}
+
+.price-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .currency {
+    position: absolute;
+    left: 14px;
+    color: #f56c6c;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+
+  .price-input {
+    padding-left: 28px;
+  }
+
+  .price-hint {
+    position: absolute;
+    right: 14px;
+    font-size: 0.75rem;
+    color: #c0c4cc;
+  }
+}
+
+.upload-section {
+  .upload-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .upload-image-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #e4e7ed;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .image-actions {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+
+      .delete-btn {
+        width: 32px;
+        height: 32px;
+        background: #f56c6c;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+
+        .el-icon {
+          color: white;
+          font-size: 16px;
+        }
+      }
+    }
+
+    &:hover .image-actions {
+      opacity: 1;
+    }
+
+    .cover-tag {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(102, 126, 234, 0.9);
+      color: white;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+  }
+
+  .upload-trigger {
+    width: 100px;
+    height: 100px;
+    border: 2px dashed #e4e7ed;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: #fafafa;
+
+    .trigger-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+
+      .upload-icon {
+        font-size: 24px;
+        color: #667eea;
+      }
+
+      span {
+        font-size: 0.8rem;
+        color: #909399;
+      }
+
+      .upload-count {
+        font-size: 0.7rem;
+        color: #c0c4cc;
+      }
+    }
+
+    &:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+  }
+
+  .upload-tip {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #c0c4cc;
+  }
+}
+
+.status-selector {
+  .el-radio-group {
+    display: flex;
+    gap: 20px;
+  }
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 28px;
+
+  .footer-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #909399;
+
+    .hint-icon {
+      font-size: 1rem;
+    }
+  }
+
+  .footer-actions {
+    display: flex;
+    gap: 12px;
+
+    .cancel-btn {
+      padding: 10px 24px;
+      border-radius: 10px;
+      border: 1px solid #dcdfe6;
+      color: #606266;
+
+      &:hover {
+        border-color: #667eea;
+        color: #667eea;
+      }
+    }
+
+    .submit-btn {
+      padding: 10px 28px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      font-weight: 600;
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+  }
+}
+
+/* 闲置装备相关样式 */
+.equipment-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
+
+  .search-box {
+    flex: 1;
+    max-width: 400px;
+
+    .el-input {
+      width: 100%;
+
+      .el-input__wrapper {
+        border-radius: 10px;
+        border: 1px solid #e4e7ed;
+
+        &:focus-within {
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+          border-color: #667eea;
+        }
+      }
+    }
+  }
+
+  .batch-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .el-checkbox {
+      font-size: 0.95rem;
+      color: #606266;
+    }
+
+    .el-button {
+      border-radius: 8px;
+    }
+  }
+}
+
+.equipment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  .equipment-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 24px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border: 1px solid #f0f0f0;
+
+    &:hover {
+      box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.15);
+      transform: translateY(-3px);
+      border-color: #e6e8eb;
+    }
+
+    .equipment-checkbox {
+      margin-right: 20px;
+      margin-top: 8px;
+
+      .el-checkbox__input.is-checked .el-checkbox__inner {
+        background-color: #667eea;
+        border-color: #667eea;
+      }
+    }
+
+    .equipment-image {
+      width: 240px;
+      height: 200px;
+      border-radius: 12px;
+      overflow: visible;
+      margin-right: 24px;
+      flex-shrink: 0;
+      position: relative;
+
+      .el-carousel {
+        height: 180px !important;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.1);
+
+        .el-carousel__container {
+          height: 180px !important;
+        }
+
+        .carousel-image {
+          width: 100%;
+          height: 180px;
+          object-fit: cover;
+          cursor: zoom-in;
+          transition: transform 0.3s ease;
+
+          &:hover {
+            transform: scale(1.02);
+          }
+        }
+
+        .el-carousel__indicators {
+          bottom: -25px;
+
+          .el-carousel__indicator {
+            .el-carousel__button {
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              background-color: #dcdfe6;
+            }
+
+            &.is-active .el-carousel__button {
+              background-color: #667eea;
+            }
+          }
+        }
+
+        .el-carousel__arrow {
+          background: rgba(0, 0, 0, 0.4);
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+
+          &:hover {
+            background: rgba(0, 0, 0, 0.6);
+          }
+
+          .el-icon {
+            font-size: 14px;
+          }
+        }
+      }
+
+      .no-image {
+        width: 100%;
+        height: 180px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #f5f7fa;
+        border-radius: 12px;
+        color: #c0c4cc;
+        gap: 8px;
+
+        span {
+          font-size: 14px;
+        }
+      }
+
+      .equipment-status-tag {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        padding: 6px 14px;
+        border-radius: 12px 0 12px 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+
+        &.status-on-sale {
+          background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+        }
+
+        &.status-sold {
+          background: linear-gradient(135deg, #909399 0%, #a6a9ad 100%);
+        }
+
+        &.status-off-sale {
+          background: linear-gradient(135deg, #f56c6c 0%, #f78989 100%);
+        }
+      }
+    }
+
+    .equipment-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 200px;
+
+      .equipment-info {
+        flex: 1;
+
+        .equipment-name {
+          font-size: 18px;
+          font-weight: 600;
+          margin-bottom: 10px;
+          color: #303133;
+          line-height: 1.4;
+          transition: color 0.3s ease;
+
+          &:hover {
+            color: #667eea;
+          }
+        }
+
+        .equipment-desc {
+          font-size: 14px;
+          color: #606266;
+          margin-bottom: 12px;
+          line-height: 1.6;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .equipment-meta {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+
+          .equipment-price {
+            font-size: 22px;
+            font-weight: 700;
+            color: #f56c6c;
+            font-family: 'Arial', sans-serif;
+          }
+
+          .original-price {
+            font-size: 14px;
+            color: #c0c4cc;
+            text-decoration: line-through;
+          }
+        }
+      }
+
+      .equipment-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #f0f0f0;
+
+        .el-button {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          font-size: 14px;
+          transition: all 0.3s ease;
+
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.15);
+          }
+
+          .el-icon {
+            font-size: 16px;
+          }
+        }
+      }
+    }
+  }
+}
+
+.empty-equipment {
+  padding: 80px 0;
+  text-align: center;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
+}
+
+.add-equipment-btn {
+  margin-top: 24px;
+  width: 100%;
+  border-radius: 10px;
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2vw;
 }
 
 .profile-card {
   background: white;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   padding: 4vh;
   box-shadow: var(--shadow-lg);
-  margin: 4vh 0;
+  margin-bottom: 4vh;
 }
 
 .profile-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 4vh;
+  margin-bottom: 3vh;
+}
 
-  .avatar-section {
-    display: flex;
-    gap: 3vw;
+.avatar-section {
+  display: flex;
+  gap: 2vw;
+  align-items: center;
 
-    .profile-avatar {
-      border: 3px solid var(--primary-color);
+  .profile-avatar {
+    border: 4px solid var(--primary-light);
+    box-shadow: var(--shadow-md);
+  }
+
+  .user-basic-info {
+    .username {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 1vh;
+      color: var(--text-primary);
     }
 
-    .user-basic-info {
-      .username {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 1vh;
-        color: var(--text-primary);
+    .user-meta {
+      display: flex;
+      gap: 1vw;
+      align-items: center;
+      margin-bottom: 1vh;
+
+      .level {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+        color: white;
+        padding: 0.3vh 1vw;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
       }
 
-      .user-meta {
-        display: flex;
-        gap: 1vw;
-        align-items: center;
-        margin-bottom: 1vh;
-
-        .level {
-          font-weight: 600;
-          color: var(--primary-color);
-        }
-
-        .exp {
-          font-size: 0.9rem;
-          color: var(--text-secondary);
-        }
-      }
-
-      .signature {
+      .exp {
+        font-size: 0.9rem;
         color: var(--text-secondary);
-        line-height: 1.5;
       }
+    }
+
+    .signature {
+      color: var(--text-secondary);
+      line-height: 1.5;
     }
   }
 }
@@ -679,6 +2717,239 @@ const handleAddressSelect = (address) => {
   margin-top: 2vh;
 }
 
+.orders-content {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 4vh;
+  box-shadow: var(--shadow-md);
+}
+
+.orders-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3vh;
+  gap: 2vw;
+
+  .search-box {
+    flex: 1;
+    max-width: 500px;
+
+    :deep(.el-input__wrapper) {
+      border-radius: 8px;
+      transition: all 0.3s;
+
+      &:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      &.is-focus {
+        box-shadow: 0 2px 12px rgba(102, 126, 234, 0.15);
+      }
+    }
+
+    :deep(.el-input-group__append) {
+      .el-button {
+        border-radius: 0 8px 8px 0;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+        border: none;
+        font-weight: 500;
+        transition: all 0.3s;
+
+        &:hover {
+          opacity: 0.9;
+          transform: translateY(-1px);
+        }
+      }
+    }
+  }
+
+  .batch-actions {
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+
+    .el-checkbox {
+      margin-right: 1vw;
+    }
+  }
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2vh;
+}
+
+.order-item {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all 0.3s;
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2vh 3vh;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+
+    .order-info {
+      display: flex;
+      gap: 2vw;
+      align-items: center;
+
+      .order-id {
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .order-time {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
+    }
+  }
+
+  .order-body {
+    padding: 3vh;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .order-gear {
+      flex: 1;
+      display: flex;
+      gap: 2vw;
+      align-items: center;
+
+      .gear-images {
+        display: flex;
+        gap: 1vw;
+
+        .gear-image {
+          width: 80px;
+          height: 80px;
+          border-radius: 8px;
+          overflow: hidden;
+          cursor: pointer;
+          transition: all 0.3s;
+          position: relative;
+
+          &:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-md);
+          }
+
+          &::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0);
+            transition: background 0.3s;
+            border-radius: 8px;
+          }
+
+          &:hover::after {
+            background: rgba(0, 0, 0, 0.1);
+          }
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+        }
+      }
+
+      .gear-info {
+        flex: 1;
+
+        .gear-title {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-bottom: 1vh;
+        }
+
+        .gear-price {
+          font-size: 0.95rem;
+          color: var(--text-secondary);
+        }
+      }
+    }
+
+    .order-total {
+      text-align: right;
+
+      .total-label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
+
+      .total-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+      }
+    }
+  }
+
+  .order-footer {
+    padding: 2vh 3vh;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .order-info-footer {
+      display: flex;
+      gap: 3vw;
+      align-items: center;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+
+      .order-address,
+      .order-phone {
+        display: flex;
+        align-items: center;
+        gap: 0.5vw;
+
+        .el-icon {
+          color: var(--primary-color);
+        }
+      }
+    }
+
+    .order-actions {
+      .el-button {
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.3s;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+      }
+    }
+  }
+}
+
+.empty-orders {
+  padding: 8vh 0;
+  text-align: center;
+}
+
 .address-content {
   background: white;
   border-radius: var(--radius-lg);
@@ -767,51 +3038,76 @@ const handleAddressSelect = (address) => {
   gap: 12px;
 }
 
+.medals-section {
+  margin-bottom: 4vh;
+
+  .section-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 2vh;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 1vh;
+  }
+}
+
+.empty-medals {
+  padding: 4vh 0;
+  text-align: center;
+}
+
 .medals-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 2vw;
 }
 
 .medal-item {
-  background: white;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-radius: var(--radius-lg);
-  padding: 3vh;
-  box-shadow: var(--shadow-md);
+  padding: 2.5vh;
   text-align: center;
-  transition: all var(--transition-normal);
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
   }
 
   &.locked {
-    opacity: 0.6;
+    opacity: 0.7;
+    background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%);
   }
 
   .medal-icon {
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    background: white;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 2vh;
+    box-shadow: var(--shadow-sm);
 
-    &.locked {
-      background: var(--border-light);
-    }
+    .medal-img {
+      width: 70px;
+      height: 70px;
+      object-fit: contain;
+      border-radius: 50%;
+      transition: all 0.3s ease;
 
-    :deep(.el-icon) {
-      color: white;
+      &.locked {
+        filter: grayscale(100%);
+        opacity: 0.5;
+      }
     }
   }
 
   .medal-name {
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 700;
     margin-bottom: 1vh;
     color: var(--text-primary);
   }
@@ -819,49 +3115,274 @@ const handleAddressSelect = (address) => {
   .medal-desc {
     font-size: 0.9rem;
     color: var(--text-secondary);
-    margin-bottom: 1.5vh;
+    margin-bottom: 2vh;
     line-height: 1.4;
+    min-height: 40px;
   }
 
-  .medal-date,
+  .medal-date {
+    font-size: 0.8rem;
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+
   .medal-requirement {
     font-size: 0.8rem;
-    color: var(--text-light);
-  }
-
-  .medal-requirement {
     color: var(--warning-color);
+    font-weight: 600;
+    background: rgba(230, 162, 60, 0.1);
+    padding: 0.5vh 1vw;
+    border-radius: 20px;
+    display: inline-block;
   }
 }
 
+// 数据统计样式
 .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 3vw;
+  display: flex;
+  flex-direction: column;
+  gap: 3vh;
 }
 
 .stat-card {
+  width: 100%;
   background: white;
   border-radius: var(--radius-lg);
   padding: 3vh;
   box-shadow: var(--shadow-md);
+  transition: all 0.3s;
 
-  h3 {
-    margin-bottom: 2vh;
-    color: var(--text-primary);
+  &:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+  }
+
+  .stat-card-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5vw;
+    margin-bottom: 3vh;
+    padding-bottom: 2vh;
+    border-bottom: 1px solid var(--border-light);
+
+    .stat-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      :deep(.el-icon) {
+        font-size: 28px;
+        color: white;
+      }
+
+      &.attendance-icon {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+      }
+
+      &.weight-icon {
+        background: linear-gradient(135deg, #52c41a, #95de64);
+        box-shadow: 0 8px 20px rgba(82, 196, 26, 0.3);
+      }
+
+      &.airforce-icon {
+        background: linear-gradient(135deg, #ff4d4f, #ff7875);
+        box-shadow: 0 8px 20px rgba(255, 77, 79, 0.3);
+      }
+    }
+
+    .stat-title-wrapper {
+      h3 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 0.5vh 0;
+      }
+
+      .stat-subtitle {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin: 0;
+      }
+    }
   }
 
   .chart-container {
-    height: 300px;
+    height: 320px;
+    background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
+    border-radius: var(--radius-md);
+    padding: 1vh;
 
     .chart {
       width: 100%;
       height: 100%;
-      border-radius: var(--radius-md);
-      background: var(--bg-tertiary);
+    }
+  }
+}
+
+/* 编辑资料对话框样式 */
+.edit-profile-dialog {
+  :deep(.el-dialog__header) {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid var(--border-light);
+    
+    .el-dialog__title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 24px;
+  }
+
+  :deep(.el-dialog__footer) {
+    padding: 16px 24px 24px;
+    border-top: 1px solid var(--border-light);
+  }
+}
+
+.edit-form {
+  .el-form-item {
+    margin-bottom: 24px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    :deep(.el-form-item__label) {
+      font-weight: 500;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+    }
+
+    :deep(.el-input__wrapper) {
+      border-radius: 8px;
+      transition: all 0.3s;
+
+      &:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      &.is-focus {
+        box-shadow: 0 2px 12px rgba(102, 126, 234, 0.15);
+      }
+    }
+
+    :deep(.el-textarea__inner) {
+      border-radius: 8px;
+      transition: all 0.3s;
+
+      &:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      &:focus {
+        box-shadow: 0 2px 12px rgba(102, 126, 234, 0.15);
+      }
+    }
+  }
+}
+
+.avatar-upload-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .avatar-uploader {
+    :deep(.el-upload) {
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+
+      &:hover {
+        border-color: var(--primary-color);
+        background: var(--bg-secondary);
+      }
+    }
+
+    :deep(.el-upload:hover) {
+      .el-upload-dragger {
+        border-color: var(--primary-color);
+      }
+    }
+
+    .avatar {
+      width: 120px;
+      height: 120px;
+      display: block;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+
+    .avatar-placeholder {
+      width: 120px;
+      height: 120px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 8px;
+      color: var(--text-secondary);
+
+      .avatar-icon {
+        font-size: 32px;
+        color: var(--primary-color);
+      }
+
+      .avatar-text {
+        font-size: 0.9rem;
+      }
+    }
+  }
+
+  .avatar-tip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+
+    .el-icon {
+      color: var(--primary-color);
+      font-size: 14px;
+    }
+  }
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+
+  .el-button {
+    min-width: 120px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s;
+
+    &:hover {
+      transform: translateY(-2px);
+    }
+
+    &:last-child {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+      border: none;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+
+      &:hover {
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+      }
     }
   }
 }
@@ -895,7 +3416,35 @@ const handleAddressSelect = (address) => {
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    gap: 3vh;
+  }
+
+  .edit-profile-dialog {
+    :deep(.el-dialog) {
+      width: 90% !important;
+      margin: 5vh auto;
+    }
+  }
+
+  .avatar-upload-wrapper {
+    .avatar-uploader {
+      :deep(.el-upload) {
+        width: 100px;
+        height: 100px;
+      }
+
+      .avatar {
+        width: 100px;
+        height: 100px;
+      }
+
+      .avatar-placeholder {
+        width: 100px;
+        height: 100px;
+      }
+    }
   }
 }
 </style>

@@ -68,14 +68,6 @@
                     <el-icon><User /></el-icon>
                     <span>个人中心</span>
                   </el-dropdown-item>
-                  <el-dropdown-item>
-                    <el-icon><Trophy /></el-icon>
-                    <span>我的勋章</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item>
-                    <el-icon><House /></el-icon>
-                    <span>设置</span>
-                  </el-dropdown-item>
                   <el-dropdown-item divided @click="handleLogout">
                     <el-icon><SwitchButton /></el-icon>
                     <span>退出登录</span>
@@ -267,6 +259,8 @@ import {
   Star,
   Close,
   Camera,
+  Warning,
+  Menu,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 

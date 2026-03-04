@@ -17,6 +17,9 @@ export const useUserStore = defineStore('user', () => {
   const setUserInfo = (info) => {
     userInfo.value = info
     localStorage.setItem('userInfo', JSON.stringify(info))
+    if (info.id) {
+      localStorage.setItem('userId', info.id)
+    }
   }
 
   const clearUserInfo = () => {
@@ -24,6 +27,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo.value = null
     localStorage.removeItem('token')
     localStorage.removeItem('userInfo')
+    localStorage.removeItem('userId')
   }
 
   const isLogin = computed(() => !!token.value)
