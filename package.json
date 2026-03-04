@@ -14,11 +14,14 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@tsparticles/engine": "^3.9.1",
+    "@tsparticles/slim": "^3.9.1",
     "axios": "^1.13.6",
     "echarts": "^6.0.0",
     "element-plus": "^2.13.3",
     "pinia": "^3.0.4",
     "sass": "^1.97.3",
+    "tsparticles": "^3.9.1",
     "vue": "^3.5.29",
     "vue-router": "^5.0.3"
   },

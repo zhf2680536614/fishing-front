@@ -1,5 +1,8 @@
 <template>
   <div class="client-layout">
+    <!-- 粒子背景 -->
+    <div id="tsparticles" class="particles-container"></div>
+
     <!-- 顶部导航栏 -->
     <header class="header-glass">
       <div class="header-content">
@@ -263,6 +266,8 @@ import {
   Menu,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { loadSlim } from '@tsparticles/slim'
+import { tsParticles } from '@tsparticles/engine'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -296,8 +301,91 @@ const handleResize = () => {
   }
 }
 
+// 粒子配置选项
+const particlesOptions = {
+  fullScreen: false,
+  background: {
+    color: {
+      value: 'transparent',
+    },
+  },
+  fpsLimit: 60,
+  interactivity: {
+    events: {
+      onHover: {
+        enable: true,
+        mode: 'grab',
+      },
+      onClick: {
+        enable: true,
+        mode: 'push',
+      },
+    },
+    modes: {
+      grab: {
+        distance: 140,
+        links: {
+          opacity: 0.5,
+        },
+      },
+      push: {
+        quantity: 4,
+      },
+    },
+  },
+  particles: {
+    color: {
+      value: ['#667eea', '#764ba2', '#4facfe', '#00f2fe'],
+    },
+    links: {
+      color: '#667eea',
+      distance: 150,
+      enable: true,
+      opacity: 0.2,
+      width: 1,
+    },
+    move: {
+      direction: 'none',
+      enable: true,
+      outModes: {
+        default: 'bounce',
+      },
+      random: true,
+      speed: 1,
+      straight: false,
+    },
+    number: {
+      density: {
+        enable: true,
+        area: 800,
+      },
+      value: 80,
+    },
+    opacity: {
+      value: 0.5,
+    },
+    shape: {
+      type: 'circle',
+    },
+    size: {
+      value: { min: 1, max: 3 },
+    },
+  },
+  detectRetina: true,
+}
+
+// 初始化粒子效果
+const initParticles = async () => {
+  await loadSlim(tsParticles)
+  await tsParticles.load({
+    id: 'tsparticles',
+    options: particlesOptions,
+  })
+}
+
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  initParticles()
 })
 
 onUnmounted(() => {
@@ -335,6 +423,18 @@ onUnmounted(() => {
   background-color: var(--bg-color);
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* 粒子背景容器 */
+.particles-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: auto;
 }
 
 /* 顶部导航 - 现代简约风格 */
@@ -769,6 +869,8 @@ onUnmounted(() => {
 
 /* 内容区 */
 .main-content {
+  position: relative;
+  z-index: 1;
   margin-top: 7vh;
   flex: 1;
   padding-bottom: 40px;

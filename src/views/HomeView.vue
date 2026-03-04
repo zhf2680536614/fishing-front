@@ -255,8 +255,8 @@
               <el-icon class="feature-icon"><Camera /></el-icon>
             </div>
             <div class="feature-content">
-              <h3 class="feature-title">AI 识鱼 & 估重</h3>
-              <p class="feature-desc">不认识鱼？拍照上传，AI 自动识别鱼种并预估重量</p>
+              <h3 class="feature-title">AI 识鱼</h3>
+              <p class="feature-desc">不认识鱼？拍照上传，AI 自动识别鱼种</p>
             </div>
             <el-icon class="feature-arrow"><ArrowRight /></el-icon>
           </div>
@@ -500,6 +500,8 @@ onMounted(() => {
 }
 
 .hero-section {
+  position: relative;
+  z-index: 1;
   margin-bottom: 64px;
 }
 
@@ -965,6 +967,8 @@ onMounted(() => {
 }
 
 .hot-posts-section {
+  position: relative;
+  z-index: 1;
   margin-bottom: 64px;
 }
 
@@ -1082,6 +1086,8 @@ onMounted(() => {
 }
 
 .features-section {
+  position: relative;
+  z-index: 1;
   margin-bottom: 48px;
 
   .section-title {

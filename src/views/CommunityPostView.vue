@@ -87,6 +87,13 @@
                   <el-icon><Location /></el-icon>
                 </template>
               </el-input>
+              <!-- 地图选择器 -->
+              <div class="map-selector-wrapper">
+                <MapSelector
+                  height="300px"
+                  @select-address="handleSelectAddress"
+                />
+              </div>
             </el-form-item>
 
             <!-- 内容 -->
@@ -187,6 +194,7 @@ import { uploadPostImage } from '@/api/file'
 import { getProfile } from '@/api/user'
 import ImagePreview from '@/components/common/ImagePreview.vue'
 import { useUserStore } from '@/stores/user'
+import MapSelector from '@/components/common/MapSelector.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -199,6 +207,13 @@ const formData = ref({
   address: '',
   content: '',
 })
+
+// 处理地图选择地址
+const handleSelectAddress = (address) => {
+  // 将详细地址填充到地址输入框
+  formData.value.address = address.detailAddress || ''
+  ElMessage.success('已选择位置：' + address.city + address.district)
+}
 
 // 上传文件列表
 const fileList = ref([])
@@ -461,6 +476,13 @@ const submitForm = async () => {
 
 .full-width {
   width: 100%;
+}
+
+.map-selector-wrapper {
+  margin-top: 12px;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .uploader-wrapper {

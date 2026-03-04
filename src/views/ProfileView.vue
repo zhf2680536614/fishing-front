@@ -1882,6 +1882,7 @@ const handleSubmitEquipment = async () => {
     font-size: 2.5rem;
     font-weight: 700;
     margin-bottom: 1vh;
+    color: white;
   }
 
   .page-description {
