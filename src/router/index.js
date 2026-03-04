@@ -30,6 +30,9 @@ const routes = [
       { path: 'community/air-force', component: () => import('../views/CommunityAirForceView.vue'), meta: { title: '空军疗伤' } },
       { path: 'ai-tools', component: () => import('../views/AiToolsView.vue'), meta: { title: 'AI 垂钓助手' } },
       { path: 'market', component: () => import('../views/MarketView.vue'), meta: { title: '装备交易' } },
+      { path: 'market/detail/:id', component: () => import('../views/GearDetailView.vue'), meta: { title: '装备详情' } },
+      { path: 'orders', component: () => import('../views/OrdersView.vue'), meta: { title: '我的订单', requiresAuth: true } },
+      { path: 'address', component: () => import('../views/AddressView.vue'), meta: { title: '地址管理', requiresAuth: true } },
       { path: 'profile', component: () => import('../views/ProfileView.vue'), meta: { title: '个人中心', requiresAuth: true } },
     ]
   },

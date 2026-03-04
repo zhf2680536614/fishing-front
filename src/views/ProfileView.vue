@@ -124,17 +124,106 @@
             </div>
           </div>
         </el-tab-pane>
+        <el-tab-pane label="收货地址" name="address">
+          <div class="tab-content">
+            <div class="address-content">
+              <!-- 添加地址按钮 -->
+              <div class="add-address-btn">
+                <el-button type="primary" class="btn-add" @click="handleAddAddress">
+                  <el-icon><Plus /></el-icon> 添加新地址
+                </el-button>
+              </div>
+
+              <!-- 地址列表 -->
+              <div class="address-list" v-if="addresses.length > 0">
+                <div v-for="address in addresses" :key="address.id" class="address-item">
+                  <div class="address-info">
+                    <div class="address-header">
+                      <span class="address-name">{{ address.name }}</span>
+                      <span class="address-phone">{{ address.phone }}</span>
+                      <el-tag v-if="address.isDefault === 1" type="primary" size="small">默认</el-tag>
+                    </div>
+                    <div class="address-detail">
+                      {{ address.fullAddress }}
+                    </div>
+                  </div>
+                  <div class="address-actions">
+                    <el-button size="small" @click="handleEditAddress(address)">编辑</el-button>
+                    <el-button size="small" type="danger" @click="handleDeleteAddress(address.id)">删除</el-button>
+                    <el-button v-if="address.isDefault !== 1" size="small" @click="handleSetDefault(address.id)">设为默认</el-button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 空地址提示 -->
+              <div v-else class="empty-address">
+                <el-empty description="暂无收货地址" />
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </div>
+
+    <!-- 地址编辑对话框 -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="800px"
+    >
+      <el-form :model="form" label-width="80px">
+        <el-form-item label="收货人">
+          <el-input v-model="form.name" placeholder="请输入收货人姓名" />
+        </el-form-item>
+        <el-form-item label="联系电话">
+          <el-input v-model="form.phone" placeholder="请输入联系电话" />
+        </el-form-item>
+        
+        <!-- 地图选点功能 -->
+        <el-form-item label="地址选择">
+          <MapSelector 
+            @select-address="handleAddressSelect"
+            :height="'300px'"
+          />
+        </el-form-item>
+        
+        <el-form-item label="省份">
+          <el-input v-model="form.province" placeholder="请输入省份" />
+        </el-form-item>
+        <el-form-item label="城市">
+          <el-input v-model="form.city" placeholder="请输入城市" />
+        </el-form-item>
+        <el-form-item label="区县">
+          <el-input v-model="form.district" placeholder="请输入区县" />
+        </el-form-item>
+        <el-form-item label="详细地址">
+          <el-input v-model="form.detailAddress" placeholder="请输入详细地址" />
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="form.isDefault">设为默认地址</el-checkbox>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmit">确定</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { Edit, Plus, Lock, Trophy, Calendar, Star } from '@element-plus/icons-vue'
+import { ref, onMounted, watch } from 'vue'
+import { Edit, Plus, Lock, Trophy, Calendar, Star, Location, Cpu } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import * as addressApi from '@/api/address'
+import MapSelector from '@/components/common/MapSelector.vue'
 
 // 响应式数据
 const activeTab = ref('equipment')
+const router = useRouter()
 
 // 用户信息
 const userInfo = ref({
@@ -220,11 +309,43 @@ const equipmentList = ref([
   },
 ])
 
+// 地址管理相关
+const addresses = ref([])
+const dialogVisible = ref(false)
+const dialogTitle = ref('添加地址')
+const form = ref({
+  id: null,
+  name: '',
+  phone: '',
+  province: '',
+  city: '',
+  district: '',
+  detailAddress: '',
+  isDefault: 0
+})
+
 // 初始化图表
 onMounted(() => {
   // 模拟图表初始化
   // 实际项目中会使用 ECharts
   initCharts()
+  
+  // 检查是否有从其他页面跳转过来的标签页标记
+  const savedTab = localStorage.getItem('activeProfileTab')
+  if (savedTab) {
+    activeTab.value = savedTab
+    localStorage.removeItem('activeProfileTab')
+    if (savedTab === 'address') {
+      loadAddresses()
+    }
+  }
+})
+
+// 监听标签页变化，当切换到地址标签页时加载地址列表
+watch(activeTab, (newTab) => {
+  if (newTab === 'address') {
+    loadAddresses()
+  }
 })
 
 // 初始化图表
@@ -244,6 +365,117 @@ const initCharts = () => {
       `
     }
   })
+}
+
+// 加载地址列表
+const loadAddresses = async () => {
+  try {
+    const response = await addressApi.getUserAddresses()
+    addresses.value = response
+  } catch (error) {
+    ElMessage.error('加载地址失败')
+  }
+}
+
+// 添加地址
+const handleAddAddress = () => {
+  dialogTitle.value = '添加地址'
+  form.value = {
+    id: null,
+    name: '',
+    phone: '',
+    province: '',
+    city: '',
+    district: '',
+    detailAddress: '',
+    isDefault: 0
+  }
+  dialogVisible.value = true
+}
+
+// 编辑地址
+const handleEditAddress = (address) => {
+  dialogTitle.value = '编辑地址'
+  form.value = {
+    id: address.id,
+    name: address.name,
+    phone: address.phone,
+    province: address.province,
+    city: address.city,
+    district: address.district,
+    detailAddress: address.detailAddress,
+    isDefault: address.isDefault
+  }
+  dialogVisible.value = true
+}
+
+// 提交表单
+const handleSubmit = async () => {
+  // 表单验证
+  if (!form.value.name) {
+    ElMessage.warning('请输入收货人姓名')
+    return
+  }
+  if (!form.value.phone) {
+    ElMessage.warning('请输入联系电话')
+    return
+  }
+  if (!form.value.province || !form.value.city || !form.value.district) {
+    ElMessage.warning('请完善地区信息')
+    return
+  }
+  if (!form.value.detailAddress) {
+    ElMessage.warning('请输入详细地址')
+    return
+  }
+
+  try {
+    if (form.value.id) {
+      // 更新地址
+      await addressApi.updateAddress(form.value.id, form.value)
+      ElMessage.success('地址更新成功')
+    } else {
+      // 创建地址
+      await addressApi.createAddress(form.value)
+      ElMessage.success('地址添加成功')
+    }
+    dialogVisible.value = false
+    loadAddresses()
+  } catch (error) {
+    ElMessage.error('操作失败，请重试')
+  }
+}
+
+// 删除地址
+const handleDeleteAddress = async (id) => {
+  try {
+    await addressApi.deleteAddress(id)
+    ElMessage.success('地址删除成功')
+    loadAddresses()
+  } catch (error) {
+    ElMessage.error('删除失败，请重试')
+  }
+}
+
+// 设置默认地址
+const handleSetDefault = async (id) => {
+  try {
+    await addressApi.setDefaultAddress(id)
+    ElMessage.success('设置默认地址成功')
+    loadAddresses()
+  } catch (error) {
+    ElMessage.error('设置失败，请重试')
+  }
+}
+
+// 处理地图选择地址
+const handleAddressSelect = (address) => {
+  console.log('选择的地址:', address)
+  form.value.province = address.province
+  form.value.city = address.city
+  form.value.district = address.district
+  form.value.detailAddress = address.detailAddress
+  ElMessage.success('地址选择成功')
 }
 </script>
 
@@ -445,6 +677,94 @@ const initCharts = () => {
 
 .add-equipment-btn {
   margin-top: 2vh;
+}
+
+.address-content {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 4vh;
+  box-shadow: var(--shadow-md);
+}
+
+.add-address-btn {
+  margin-bottom: 3vh;
+
+  .btn-add {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 10px 24px;
+    font-weight: 600;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+}
+
+.address-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2vh;
+}
+
+.address-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2vh;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: all 0.3s;
+
+  &:hover {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .address-info {
+    flex: 1;
+
+    .address-header {
+      display: flex;
+      align-items: center;
+      gap: 1vw;
+      margin-bottom: 1vh;
+
+      .address-name {
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .address-phone {
+        color: var(--text-secondary);
+      }
+    }
+
+    .address-detail {
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+  }
+
+  .address-actions {
+    display: flex;
+    gap: 12px;
+
+    .el-button {
+      padding: 4px 12px;
+    }
+  }
+}
+
+.empty-address {
+  text-align: center;
+  padding: 8vh 0;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .medals-grid {

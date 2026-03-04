@@ -35,6 +35,12 @@
                   <el-option label="价格从低到高" value="price_asc" />
                   <el-option label="价格从高到低" value="price_desc" />
                 </el-select>
+                <el-button type="primary" class="search-btn" @click="handleSearch">
+                  <el-icon><Search /></el-icon> 搜索
+                </el-button>
+                <el-button class="reset-btn" @click="handleReset">
+                  重置
+                </el-button>
               </div>
               <div class="filter-right">
                 <el-button type="primary" @click="handlePublish">
@@ -60,12 +66,16 @@
               </template>
               <div v-if="!loading" class="equipment-grid">
                 <div v-for="item in equipmentItems" :key="item.id" class="equipment-card">
-                  <div class="equipment-image">
-                    <img v-if="item.images && item.images.length > 0" :src="item.images[0]" alt="装备图片" />
+                  <div class="equipment-image" @click="handlePreviewImage(item.images, 0)">
+                    <el-carousel v-if="item.images && item.images.length > 0" height="200px" indicator-position="outside" :autoplay="false">
+                      <el-carousel-item v-for="(image, index) in item.images" :key="index">
+                        <img :src="image" alt="装备图片" style="width: 100%; height: 100%; object-fit: cover;" />
+                      </el-carousel-item>
+                    </el-carousel>
                     <div v-else class="no-image">无图片</div>
                     <el-tag v-if="item.originalPrice && item.originalPrice > item.price" type="success" class="new-tag"> 优惠 </el-tag>
                   </div>
-                  <div class="equipment-content">
+                  <div class="equipment-content" @click="handleViewDetail(item)">
                     <h3 class="equipment-title">{{ item.title }}</h3>
                     <div class="equipment-price">
                       <span class="current-price">¥{{ item.price }}</span>
@@ -73,10 +83,7 @@
                     </div>
                     <div class="equipment-meta">
                       <span class="seller">{{ item.nickname || item.username }}</span>
-                      <span class="publish-time">{{ item.createTime }}</span>
-                    </div>
-                    <div class="equipment-footer">
-                      <el-button size="small" type="primary" plain @click="handleViewDetail(item)"> 查看详情 </el-button>
+                      <span class="publish-time">{{ formatTime(item.createTime) }}</span>
                     </div>
                   </div>
                 </div>
@@ -86,17 +93,20 @@
               </div>
             </el-skeleton>
 
-            <!-- 分页 -->
-            <div class="pagination">
-              <el-pagination
-                v-model:current-page="currentPage"
-                :page-size="pageSize"
-                :page-sizes="[10, 20, 30]"
-                layout="total, sizes, prev, pager, next, jumper"
-                :total="totalItems"
-                @size-change="handleSizeChange"
-                @current-change="handleCurrentChange"
-              />
+            <!-- 查看更多 -->
+            <div v-if="!loading" class="load-more">
+              <el-button 
+                type="primary" 
+                plain 
+                :loading="loadingMore"
+                @click="handleLoadMore"
+                v-if="hasMore"
+              >
+                查看更多
+              </el-button>
+              <div v-else-if="equipmentItems.length > 0" class="no-more">
+                没有更多了
+              </div>
             </div>
           </div>
         </el-tab-pane>
@@ -147,7 +157,7 @@
                     <h3 class="review-title">{{ review.title }}</h3>
                     <div class="review-meta">
                       <span class="reviewer">{{ review.nickname || review.username }}</span>
-                      <span class="review-time">{{ review.createTime }}</span>
+                      <span class="review-time">{{ formatTime(review.createTime) }}</span>
                     </div>
                   </div>
                   <div class="review-content">
@@ -214,6 +224,19 @@
           </div>
         </el-tab-pane>
       </el-tabs>
+      
+      <!-- 发布闲置对话框 -->
+      <PublishGearDialog
+        v-model:visible="publishDialogVisible"
+        @success="handlePublishSuccess"
+      />
+      
+      <!-- 图片预览 -->
+      <ImagePreview
+        v-model:visible="previewVisible"
+        :images="previewImages"
+        :initial-index="previewInitialIndex"
+      />
     </div>
   </div>
 </template>
@@ -222,7 +245,10 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { Plus, Edit, Cpu, View, Star, ChatLineSquare, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
 import * as gearApi from '@/api/gear'
+import PublishGearDialog from '@/components/business/PublishGearDialog.vue'
+import ImagePreview from '@/components/common/ImagePreview.vue'
 
 // 响应式数据
 const activeTab = ref('second-hand')
@@ -230,10 +256,20 @@ const searchKeyword = ref('')
 const category = ref('all')
 const sortBy = ref('newest')
 const currentPage = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(8) // 首次加载8条
 const totalItems = ref(0)
 const equipmentItems = ref([])
 const loading = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+
+// 路由
+const router = useRouter()
+
+// 图片预览
+const previewVisible = ref(false)
+const previewImages = ref([])
+const previewInitialIndex = ref(0)
 
 const reviewKeyword = ref('')
 const reviewCategory = ref('all')
@@ -241,22 +277,44 @@ const reviews = ref([])
 const totalReviews = ref(0)
 const reviewLoading = ref(false)
 
+// 发布对话框
+const publishDialogVisible = ref(false)
+
 // 加载闲置装备列表
-const loadEquipmentList = async () => {
-  loading.value = true
+const loadEquipmentList = async (isLoadMore = false) => {
+  if (isLoadMore) {
+    loadingMore.value = true
+  } else {
+    loading.value = true
+    equipmentItems.value = [] // 重置列表
+    currentPage.value = 1
+    hasMore.value = true
+  }
   try {
     const response = await gearApi.getGearMarketList({
       pageNum: currentPage.value,
       pageSize: pageSize.value,
       category: category.value,
-      keyword: searchKeyword.value
+      keyword: searchKeyword.value,
+      sortBy: sortBy.value
     })
-    equipmentItems.value = response.list
+    if (isLoadMore) {
+      // 加载更多，追加数据
+      equipmentItems.value = [...equipmentItems.value, ...response.records]
+    } else {
+      // 首次加载，替换数据
+      equipmentItems.value = response.records
+    }
     totalItems.value = response.total
+    // 判断是否还有更多数据
+    hasMore.value = equipmentItems.value.length < totalItems.value
+    // 增加页码
+    currentPage.value++
   } catch (error) {
     ElMessage.error('加载装备列表失败')
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
 
@@ -270,7 +328,7 @@ const loadReviewList = async () => {
       category: reviewCategory.value,
       keyword: reviewKeyword.value
     })
-    reviews.value = response.list
+    reviews.value = response.records
     totalReviews.value = response.total
   } catch (error) {
     ElMessage.error('加载测评列表失败')
@@ -279,40 +337,34 @@ const loadReviewList = async () => {
   }
 }
 
-// 分页处理
-const handleSizeChange = (size) => {
-  pageSize.value = size
-  currentPage.value = 1
-  if (activeTab.value === 'second-hand') {
-    loadEquipmentList()
-  } else {
-    loadReviewList()
+// 查看更多
+const handleLoadMore = () => {
+  if (!loadingMore.value && hasMore.value) {
+    loadEquipmentList(true)
   }
 }
 
-const handleCurrentChange = (current) => {
-  currentPage.value = current
-  if (activeTab.value === 'second-hand') {
-    loadEquipmentList()
-  } else {
-    loadReviewList()
-  }
+// 重置
+const handleReset = () => {
+  searchKeyword.value = ''
+  category.value = 'all'
+  sortBy.value = 'newest'
+  handleSearch()
 }
 
 // 搜索和筛选
 const handleSearch = () => {
-  currentPage.value = 1
-  if (activeTab.value === 'second-hand') {
-    loadEquipmentList()
-  } else {
-    loadReviewList()
-  }
+  loadEquipmentList()
 }
 
 // 发布闲置
 const handlePublish = () => {
-  // 这里可以跳转到发布页面或打开弹窗
-  ElMessage.info('发布功能开发中')
+  publishDialogVisible.value = true
+}
+
+// 发布成功回调
+const handlePublishSuccess = () => {
+  loadEquipmentList()
 }
 
 // 写测评
@@ -323,13 +375,31 @@ const handleWriteReview = () => {
 
 // 查看详情
 const handleViewDetail = (item) => {
-  // 这里可以跳转到详情页面
-  ElMessage.info(`查看${item.title}详情`)
+  router.push(`/market/detail/${item.id}`)
+}
+
+// 预览图片
+const handlePreviewImage = (images, index) => {
+  previewImages.value = images
+  previewInitialIndex.value = index
+  previewVisible.value = true
+}
+
+// 格式化时间
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 // 监听标签切换
 watch(activeTab, (newTab) => {
-  currentPage.value = 1
   if (newTab === 'second-hand') {
     loadEquipmentList()
   } else {
@@ -337,7 +407,7 @@ watch(activeTab, (newTab) => {
   }
 })
 
-// 初始化加载
+// 页面加载时
 onMounted(() => {
   loadEquipmentList()
 })
@@ -368,7 +438,7 @@ onMounted(() => {
 }
 
 .market-tabs {
-  margin: 4vh 0;
+  margin: 1vh 0;
 
   :deep(.el-tabs__header) {
     border-bottom: 1px solid var(--border-light);
@@ -415,6 +485,70 @@ onMounted(() => {
     .sort-select {
       width: 150px;
     }
+
+    .search-btn {
+      margin-left: 8px;
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 1.2vh 2.5vw;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: all var(--transition-normal);
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+    }
+
+    .reset-btn {
+      margin-left: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.2vh 2.5vw;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: all var(--transition-normal);
+      
+      &:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        background: var(--bg-primary);
+      }
+    }
+  }
+
+  .filter-right {
+    .el-button {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 1.2vh 2.5vw;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: all var(--transition-normal);
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+    }
+  }
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 4vh;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+
+  .no-more {
+    color: #909399;
+    font-size: 14px;
   }
 }
 

@@ -6,9 +6,15 @@ export const getGearMarketList = (params) => {
 }
 
 export const getGearMarketDetail = (id) => {
-  return request.get(`/gear-market/${id}`)
+  return request.get(`/gear-market/detail/${id}`)
 }
 
+// 创建订单
+export const createOrder = (data) => {
+  return request.post('/order/create', data)
+}
+
+// 装备测评相关API
 export const createGearMarket = (data) => {
   return request.post('/gear-market', data)
 }
