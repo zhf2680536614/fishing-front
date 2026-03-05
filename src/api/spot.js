@@ -33,6 +33,27 @@ export const getAiRecommendation = (id) => {
   return request.get(`/fishing-spot/${id}/ai-recommendation`)
 }
 
+// 管理后台接口
+export const getSpotPage = (data) => {
+  return request.post('/fishing-spot/page', data)
+}
+
+export const getSpotManageById = (id) => {
+  return request.get(`/fishing-spot/manage/${id}`)
+}
+
+export const createSpot = (data) => {
+  return request.post('/fishing-spot', data)
+}
+
+export const updateSpot = (id, data) => {
+  return request.put(`/fishing-spot/${id}`, data)
+}
+
+export const deleteSpot = (id) => {
+  return request.delete(`/fishing-spot/${id}`)
+}
+
 export const analyzeSpot = async (spotName, spotType, address, fishInfo, onMessage, onComplete, onError) => {
   const params = new URLSearchParams()
   if (spotName) params.append('spotName', spotName)

@@ -76,3 +76,41 @@ export const updateGearReview = (id, data) => {
 export const deleteGearReview = (id) => {
   return request.delete(`/gear-review/${id}`)
 }
+
+// 装备测评管理后台API
+export const getGearReviewPage = (data) => {
+  return request.post('/gear-review/manage/page', data)
+}
+
+export const getGearReviewManageById = (id) => {
+  return request.get(`/gear-review/manage/${id}`)
+}
+
+export const updateGearReviewManage = (id, data) => {
+  return request.put(`/gear-review/manage/${id}`, data)
+}
+
+export const deleteGearReviewManage = (id) => {
+  return request.delete(`/gear-review/manage/${id}`)
+}
+
+// 装备交易管理后台API
+export const getGearMarketPage = (data) => {
+  return request.post('/gear-market/manage/page', data)
+}
+
+export const getGearMarketManageById = (id) => {
+  return request.get(`/gear-market/manage/${id}`)
+}
+
+export const saveGearMarketManage = (data) => {
+  return request.post('/gear-market/manage', data)
+}
+
+export const updateGearMarketManage = (id, data) => {
+  return request.put(`/gear-market/manage/${id}`, data)
+}
+
+export const deleteGearMarketManage = (id) => {
+  return request.delete(`/gear-market/manage/${id}`)
+}

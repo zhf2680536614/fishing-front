@@ -24,3 +24,20 @@ export const deleteOrder = (orderId) => {
 export const batchDeleteOrders = (orderIds) => {
   return request.delete('/order/batch', { data: orderIds })
 }
+
+// 订单管理后台API
+export const getOrderPage = (data) => {
+  return request.post('/order/manage/page', data)
+}
+
+export const getOrderManageById = (id) => {
+  return request.get(`/order/manage/${id}`)
+}
+
+export const updateOrderStatus = (id, data) => {
+  return request.put(`/order/manage/${id}/status`, data)
+}
+
+export const deleteOrderManage = (id) => {
+  return request.delete(`/order/manage/${id}`)
+}

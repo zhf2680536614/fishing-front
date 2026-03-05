@@ -19,3 +19,20 @@ export const toggleLike = (id) => {
 export const incrementView = (id) => {
   return request.post(`/post/view/${id}`)
 }
+
+// 管理后台接口
+export const getPostPage = (data) => {
+  return request.post('/post/page', data)
+}
+
+export const getPostManageById = (id) => {
+  return request.get(`/post/manage/${id}`)
+}
+
+export const updatePost = (id, data) => {
+  return request.put(`/post/${id}`, data)
+}
+
+export const deletePost = (id) => {
+  return request.delete(`/post/${id}`)
+}
