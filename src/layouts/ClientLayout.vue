@@ -260,15 +260,12 @@ import {
   Cpu,
   ShoppingBag,
   User,
-  Trophy,
   SwitchButton,
   ArrowDown,
   Message,
   Star,
   Close,
   Camera,
-  Warning,
-  Menu,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 

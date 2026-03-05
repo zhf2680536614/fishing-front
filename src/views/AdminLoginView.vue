@@ -1,19 +1,19 @@
 <template>
-  <div class="login-page">
+  <div class="admin-login-page">
     <!-- 动态背景 -->
-    <AuthBackground particles-id="login-particles" />
+    <AuthBackground particles-id="admin-login-particles" />
 
-    <div class="login-container">
-      <div class="login-card">
+    <div class="admin-login-container">
+      <div class="admin-login-card">
         <div class="login-header">
           <div class="logo-section">
             <div class="logo-icon">
-              <el-icon><House /></el-icon>
+              <el-icon><Setting /></el-icon>
             </div>
             <h1 class="app-name">
-              <span class="text-gradient">鱼乐圈</span>
+              <span class="text-gradient">管理后台</span>
             </h1>
-            <p class="app-slogan">永不空军 · 钓友之家</p>
+            <p class="app-slogan">鱼乐圈 · 系统管理</p>
           </div>
         </div>
 
@@ -25,14 +25,14 @@
           @submit.prevent="handleLogin"
         >
           <div class="form-title">
-            <h2>欢迎回来</h2>
-            <p>登录您的账户继续钓鱼之旅</p>
+            <h2>管理员登录</h2>
+            <p>请输入管理员账号和密码</p>
           </div>
 
           <el-form-item prop="username">
             <el-input
               v-model="loginForm.username"
-              placeholder="请输入用户名"
+              placeholder="请输入管理员账号"
               size="large"
               clearable
             >
@@ -66,27 +66,23 @@
               @click="handleLogin"
             >
               <el-icon class="btn-icon"><ArrowRight /></el-icon>
-              立即登录
+              登录管理后台
             </el-button>
           </el-form-item>
 
           <div class="form-footer">
-            <div class="footer-left">
-              <span class="footer-text">还没有账号？</span>
-              <router-link to="/register" class="register-link">立即注册</router-link>
-            </div>
-            <router-link to="/admin-login" class="admin-link">
-              <el-icon><Setting /></el-icon>
-              管理员登录
+            <router-link to="/login" class="back-link">
+              <el-icon><ArrowLeft /></el-icon>
+              返回用户登录
             </router-link>
           </div>
         </el-form>
       </div>
 
       <!-- 装饰元素 -->
-      <div class="decoration fish-icon fish-1">🎣</div>
-      <div class="decoration fish-icon fish-2">🐟</div>
-      <div class="decoration fish-icon fish-3">🦈</div>
+      <div class="decoration gear-icon gear-1">⚙️</div>
+      <div class="decoration gear-icon gear-2">🔧</div>
+      <div class="decoration gear-icon gear-3">🔒</div>
       <div class="decoration wave wave-1"></div>
       <div class="decoration wave wave-2"></div>
     </div>
@@ -95,15 +91,14 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { House, User, Lock, Setting, ArrowRight } from '@element-plus/icons-vue'
+import { Setting, User, Lock, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { login } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import AuthBackground from '@/components/common/AuthBackground.vue'
 
 const router = useRouter()
-const route = useRoute()
 const userStore = useUserStore()
 
 const loginFormRef = ref(null)
@@ -116,8 +111,8 @@ const loginForm = reactive({
 
 const loginRules = {
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' },
+    { required: true, message: '请输入管理员账号', trigger: 'blur' },
+    { min: 3, max: 20, message: '账号长度在 3 到 20 个字符', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -133,11 +128,15 @@ const handleLogin = async () => {
       loading.value = true
       try {
         const res = await login(loginForm)
+        // 检查是否为管理员
+        if (res.roleDictItemCode !== 'admin') {
+          ElMessage.error('该账号无管理员权限')
+          return
+        }
         userStore.setToken(res.token)
         userStore.setUserInfo(res)
-        ElMessage.success('登录成功')
-        const redirect = route.query.redirect || '/home'
-        router.push(redirect)
+        ElMessage.success('管理员登录成功')
+        router.push('/admin')
       } catch (error) {
         console.error('登录失败:', error)
       } finally {
@@ -149,13 +148,13 @@ const handleLogin = async () => {
 </script>
 
 <style lang="scss" scoped>
-.login-page {
+.admin-login-page {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
 }
 
-.login-container {
+.admin-login-container {
   position: relative;
   z-index: 10;
   min-height: 100vh;
@@ -165,7 +164,7 @@ const handleLogin = async () => {
   padding: 20px;
 }
 
-.login-card {
+.admin-login-card {
   width: 100%;
   max-width: 440px;
   background: rgba(255, 255, 255, 0.95);
@@ -186,7 +185,7 @@ const handleLogin = async () => {
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #667eea, #764ba2, #4facfe, #00f2fe);
+    background: linear-gradient(90deg, #1a1a2e, #16213e, #0f3460, #e94560);
     background-size: 300% 100%;
     animation: gradientFlow 3s ease infinite;
   }
@@ -218,14 +217,14 @@ const handleLogin = async () => {
     width: 72px;
     height: 72px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 20px;
     box-shadow:
-      0 8px 32px rgba(102, 126, 234, 0.4),
-      0 0 0 4px rgba(102, 126, 234, 0.1);
+      0 8px 32px rgba(15, 52, 96, 0.4),
+      0 0 0 4px rgba(15, 52, 96, 0.1);
     animation: iconFloat 3s ease-in-out infinite;
 
     .el-icon {
@@ -246,11 +245,11 @@ const handleLogin = async () => {
     letter-spacing: 2px;
 
     .text-gradient {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #4facfe 100%);
+      background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 50%, #e94560 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      text-shadow: 0 2px 10px rgba(102, 126, 234, 0.2);
+      text-shadow: 0 2px 10px rgba(15, 52, 96, 0.2);
     }
   }
 
@@ -299,13 +298,13 @@ const handleLogin = async () => {
       &:hover {
         box-shadow:
           0 4px 16px rgba(0, 0, 0, 0.08),
-          0 0 0 1px rgba(102, 126, 234, 0.2) inset;
+          0 0 0 1px rgba(15, 52, 96, 0.2) inset;
       }
 
       &.is-focus {
         box-shadow:
-          0 4px 20px rgba(102, 126, 234, 0.15),
-          0 0 0 2px rgba(102, 126, 234, 0.2) inset;
+          0 4px 20px rgba(15, 52, 96, 0.15),
+          0 0 0 2px rgba(15, 52, 96, 0.2) inset;
       }
     }
 
@@ -329,7 +328,7 @@ const handleLogin = async () => {
 
     &:focus-within {
       :deep(.el-input__prefix .el-icon) {
-        color: #667eea;
+        color: #0f3460;
       }
     }
   }
@@ -340,10 +339,10 @@ const handleLogin = async () => {
     font-size: 17px;
     font-weight: 600;
     border-radius: 14px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     border: none;
     box-shadow:
-      0 8px 24px rgba(102, 126, 234, 0.4),
+      0 8px 24px rgba(15, 52, 96, 0.4),
       0 0 0 1px rgba(255, 255, 255, 0.2) inset;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     margin-top: 8px;
@@ -360,7 +359,7 @@ const handleLogin = async () => {
     &:hover {
       transform: translateY(-2px);
       box-shadow:
-        0 12px 32px rgba(102, 126, 234, 0.5),
+        0 12px 32px rgba(15, 52, 96, 0.5),
         0 0 0 1px rgba(255, 255, 255, 0.3) inset;
 
       .btn-icon {
@@ -375,58 +374,21 @@ const handleLogin = async () => {
 
   .form-footer {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: center;
     margin-top: 28px;
     padding-top: 24px;
     border-top: 1px solid rgba(0, 0, 0, 0.06);
 
-    .footer-left {
-      .footer-text {
-        font-size: 14px;
-        color: #909399;
-      }
-
-      .register-link {
-        font-size: 14px;
-        color: #667eea;
-        font-weight: 600;
-        text-decoration: none;
-        margin-left: 6px;
-        transition: all 0.3s ease;
-        position: relative;
-
-        &::after {
-          content: '';
-          position: absolute;
-          bottom: -2px;
-          left: 0;
-          width: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #667eea, #764ba2);
-          transition: width 0.3s ease;
-        }
-
-        &:hover {
-          color: #764ba2;
-
-          &::after {
-            width: 100%;
-          }
-        }
-      }
-    }
-
-    .admin-link {
+    .back-link {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       font-size: 14px;
       color: #606266;
       text-decoration: none;
       transition: all 0.3s ease;
-      padding: 6px 12px;
-      border-radius: 8px;
+      padding: 8px 16px;
+      border-radius: 10px;
 
       .el-icon {
         font-size: 14px;
@@ -434,11 +396,11 @@ const handleLogin = async () => {
       }
 
       &:hover {
-        color: #667eea;
-        background: rgba(102, 126, 234, 0.08);
+        color: #0f3460;
+        background: rgba(15, 52, 96, 0.08);
 
         .el-icon {
-          transform: rotate(90deg);
+          transform: translateX(-4px);
         }
       }
     }
@@ -452,67 +414,59 @@ const handleLogin = async () => {
   z-index: 5;
 }
 
-.fish-icon {
-  font-size: 40px;
-  opacity: 0.15;
-  animation: swim 20s linear infinite;
+.gear-icon {
+  font-size: 36px;
+  opacity: 0.12;
+  animation: rotate 20s linear infinite;
   filter: blur(1px);
 }
 
-.fish-1 {
+.gear-1 {
   top: 15%;
-  left: 8%;
-  animation-delay: 0s;
-}
-
-.fish-2 {
-  top: 60%;
   right: 10%;
-  font-size: 32px;
-  animation-delay: -7s;
+  animation-duration: 25s;
 }
 
-.fish-3 {
-  bottom: 20%;
-  left: 15%;
+.gear-2 {
+  top: 50%;
+  left: 8%;
   font-size: 28px;
-  animation-delay: -14s;
+  animation-duration: 20s;
+  animation-direction: reverse;
 }
 
-@keyframes swim {
-  0% {
-    transform: translateX(0) translateY(0) rotate(0deg);
+.gear-3 {
+  bottom: 25%;
+  right: 12%;
+  font-size: 32px;
+  animation-duration: 30s;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
   }
-  25% {
-    transform: translateX(30px) translateY(-20px) rotate(5deg);
-  }
-  50% {
-    transform: translateX(0) translateY(-10px) rotate(0deg);
-  }
-  75% {
-    transform: translateX(-30px) translateY(-30px) rotate(-5deg);
-  }
-  100% {
-    transform: translateX(0) translateY(0) rotate(0deg);
+  to {
+    transform: rotate(360deg);
   }
 }
 
 .wave {
   width: 200px;
   height: 200px;
-  border: 2px solid rgba(102, 126, 234, 0.1);
+  border: 2px solid rgba(15, 52, 96, 0.1);
   border-radius: 50%;
   animation: ripple 8s ease-out infinite;
 }
 
 .wave-1 {
   bottom: -100px;
-  right: -50px;
+  left: -50px;
 }
 
 .wave-2 {
   top: -80px;
-  left: -60px;
+  right: -60px;
   animation-delay: -4s;
 }
 
@@ -529,7 +483,7 @@ const handleLogin = async () => {
 
 /* 响应式适配 */
 @media (max-width: 480px) {
-  .login-card {
+  .admin-login-card {
     padding: 36px 24px;
     border-radius: 24px;
   }
@@ -540,7 +494,7 @@ const handleLogin = async () => {
     }
   }
 
-  .fish-icon {
+  .gear-icon {
     display: none;
   }
 }
