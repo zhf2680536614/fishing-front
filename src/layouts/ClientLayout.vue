@@ -217,10 +217,10 @@
         </div>
         <div class="footer-col">
           <h4 class="footer-title">关于我们</h4>
-          <a href="#" class="footer-link">平台介绍</a>
-          <a href="#" class="footer-link">用户协议</a>
-          <a href="#" class="footer-link">隐私政策</a>
-          <a href="#" class="footer-link">联系我们</a>
+          <a href="#" @click.prevent="$router.push('/about/introduction')" class="footer-link">平台介绍</a>
+          <a href="#" @click.prevent="$router.push('/about/agreement')" class="footer-link">用户协议</a>
+          <a href="#" @click.prevent="$router.push('/about/privacy')" class="footer-link">隐私政策</a>
+          <a href="#" @click.prevent="$router.push('/about/contact')" class="footer-link">联系我们</a>
         </div>
         <div class="footer-col">
           <h4 class="footer-title">联系我们</h4>
@@ -238,8 +238,8 @@
       <div class="footer-bottom">
         <div class="copyright">© 2025 鱼乐圈 - 钓鱼佬与空军俱乐部. 保留所有权利.</div>
         <div class="footer-links">
-          <a href="#" class="footer-bottom-link">用户协议</a>
-          <a href="#" class="footer-bottom-link">隐私政策</a>
+          <a href="#" @click.prevent="$router.push('/about/agreement')" class="footer-bottom-link">用户协议</a>
+          <a href="#" @click.prevent="$router.push('/about/privacy')" class="footer-bottom-link">隐私政策</a>
           <a href="#" class="footer-bottom-link">免责声明</a>
         </div>
       </div>

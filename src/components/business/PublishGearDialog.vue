@@ -4,14 +4,15 @@
     title=""
     width="680px"
     :close-on-click-modal="false"
+    :show-close="false"
     @close="handleClose"
     class="publish-dialog"
   >
     <!-- 头部 -->
     <div class="dialog-header">
       <div class="header-left">
-        <h2 class="dialog-title">发布闲置装备</h2>
-        <p class="dialog-subtitle">让你的闲置装备找到新主人</p>
+        <h2 class="dialog-title">{{ isEditMode ? '编辑闲置装备' : '发布闲置装备' }}</h2>
+        <p class="dialog-subtitle">{{ isEditMode ? '修改你的闲置装备信息' : '让你的闲置装备找到新主人' }}</p>
       </div>
       <div class="header-icon">
         <el-icon><ShoppingBag /></el-icon>
@@ -145,6 +146,21 @@
           @change="handleFileChange"
         />
       </div>
+
+      <!-- 状态选择（仅在编辑模式下显示） -->
+      <div class="form-group" v-if="isEditMode">
+        <label class="form-label">
+          <span class="label-icon">✦</span>
+          商品状态
+        </label>
+        <div class="status-selector">
+          <el-radio-group v-model="form.statusDictItemCode">
+            <el-radio label="on_sale">在售</el-radio>
+            <el-radio label="sold">已售出</el-radio>
+            <el-radio label="off_shelf">已下架</el-radio>
+          </el-radio-group>
+        </div>
+      </div>
     </div>
 
     <!-- 底部 -->
@@ -152,7 +168,7 @@
       <div class="dialog-footer">
         <div class="footer-hint">
           <span class="hint-icon">💡</span>
-          完善信息有助于提高曝光率
+          {{ isEditMode ? '完善信息有助于更快成交' : '完善信息有助于提高曝光率' }}
         </div>
         <div class="footer-actions">
           <el-button class="cancel-btn" @click="handleClose">取消</el-button>
@@ -163,7 +179,7 @@
             @click="handleSubmit"
           >
             <el-icon v-if="!submitting"><Check /></el-icon>
-            发布闲置
+            {{ isEditMode ? '保存修改' : '发布闲置' }}
           </el-button>
         </div>
       </div>
@@ -175,7 +191,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, ArrowDown, ShoppingBag, Check } from '@element-plus/icons-vue'
-import * as gearApi from '@/api/gear'
+import { createGearMarket, updateGearMarket } from '@/api/gear'
 import { uploadPostImages } from '@/api/file'
 import { getDictItems } from '@/api/dict'
 
@@ -183,6 +199,17 @@ const props = defineProps({
   visible: {
     type: Boolean,
     default: false
+  },
+  // 模式：'create' 发布模式，'edit' 编辑模式
+  mode: {
+    type: String,
+    default: 'create',
+    validator: (value) => ['create', 'edit'].includes(value)
+  },
+  // 编辑模式下的初始数据
+  editData: {
+    type: Object,
+    default: () => null
   }
 })
 
@@ -193,12 +220,16 @@ const dialogVisible = computed({
   set: (val) => emit('update:visible', val)
 })
 
+// 是否为编辑模式
+const isEditMode = computed(() => props.mode === 'edit')
+
 const fileInputRef = ref(null)
 const submitting = ref(false)
 const imageUrls = ref([])
 const gearCategories = ref([]) // 装备分类列表
 
 const form = ref({
+  id: null,
   title: '',
   categoryDictTypeCode: 'gear_category',
   categoryDictItemCode: '',
@@ -214,22 +245,61 @@ const imageList = computed(() => {
   return imageUrls.value
 })
 
+// 监听 visible 变化，初始化表单
 watch(() => props.visible, (val) => {
   if (val) {
-    form.value = {
-      title: '',
-      categoryDictTypeCode: 'gear_category',
-      categoryDictItemCode: '',
-      statusDictTypeCode: 'gear_market_status',
-      statusDictItemCode: 'on_sale',
-      price: null,
-      originalPrice: null,
-      description: '',
-      images: []
+    if (isEditMode.value && props.editData) {
+      // 编辑模式：使用传入的数据初始化表单
+      form.value = {
+        id: props.editData.id || null,
+        title: props.editData.title || '',
+        categoryDictTypeCode: props.editData.categoryDictTypeCode || 'gear_category',
+        categoryDictItemCode: props.editData.categoryDictItemCode || props.editData.category || '',
+        statusDictTypeCode: props.editData.statusDictTypeCode || 'gear_market_status',
+        statusDictItemCode: props.editData.statusDictItemCode || 'on_sale',
+        price: props.editData.price || null,
+        originalPrice: props.editData.originalPrice || null,
+        description: props.editData.description || '',
+        images: props.editData.images || []
+      }
+      imageUrls.value = props.editData.images || []
+    } else {
+      // 发布模式：重置表单
+      form.value = {
+        id: null,
+        title: '',
+        categoryDictTypeCode: 'gear_category',
+        categoryDictItemCode: '',
+        statusDictTypeCode: 'gear_market_status',
+        statusDictItemCode: 'on_sale',
+        price: null,
+        originalPrice: null,
+        description: '',
+        images: []
+      }
+      imageUrls.value = []
     }
-    imageUrls.value = []
   }
 })
+
+// 监听 editData 变化（用于编辑时数据更新）
+watch(() => props.editData, (newData) => {
+  if (isEditMode.value && newData && dialogVisible.value) {
+    form.value = {
+      id: newData.id || null,
+      title: newData.title || '',
+      categoryDictTypeCode: newData.categoryDictTypeCode || 'gear_category',
+      categoryDictItemCode: newData.categoryDictItemCode || newData.category || '',
+      statusDictTypeCode: newData.statusDictTypeCode || 'gear_market_status',
+      statusDictItemCode: newData.statusDictItemCode || 'on_sale',
+      price: newData.price || null,
+      originalPrice: newData.originalPrice || null,
+      description: newData.description || '',
+      images: newData.images || []
+    }
+    imageUrls.value = newData.images || []
+  }
+}, { deep: true })
 
 // 获取装备分类
 const fetchGearCategories = async () => {
@@ -319,12 +389,21 @@ const handleSubmit = async () => {
       description: form.value.description,
       images: form.value.images
     }
-    await gearApi.createGearMarket(data)
-    ElMessage.success('发布成功')
+
+    if (isEditMode.value && form.value.id) {
+      // 编辑模式：调用更新接口
+      await updateGearMarket(form.value.id, data)
+      ElMessage.success('修改成功')
+    } else {
+      // 发布模式：调用创建接口
+      await createGearMarket(data)
+      ElMessage.success('发布成功')
+    }
+    
     emit('success')
     handleClose()
   } catch (error) {
-    ElMessage.error(error.message || '发布失败')
+    ElMessage.error(error.message || (isEditMode.value ? '修改失败' : '发布失败'))
   } finally {
     submitting.value = false
   }
@@ -333,6 +412,10 @@ const handleSubmit = async () => {
 
 <style lang="scss">
 .publish-dialog {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  
   .el-dialog__header {
     padding: 0;
     margin: 0;
@@ -392,6 +475,9 @@ const handleSubmit = async () => {
   padding: 24px 28px;
   max-height: 65vh;
   overflow-y: auto;
+  background: white;
+  border-radius: 0;
+  margin-top: -1px;
 }
 
 .form-group {
@@ -505,6 +591,14 @@ const handleSubmit = async () => {
     right: 14px;
     font-size: 0.75rem;
     color: #c0c4cc;
+  }
+}
+
+.status-selector {
+  padding: 10px 0;
+  
+  :deep(.el-radio) {
+    margin-right: 20px;
   }
 }
 
@@ -628,6 +722,9 @@ const handleSubmit = async () => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 28px;
+  background: white;
+  border-radius: 0 0 12px 12px;
+  border-top: 1px solid #f0f0f0;
 
   .footer-hint {
     display: flex;

@@ -78,6 +78,9 @@
                 </el-button>
               </div>
             </div>
+            <el-button type="primary" class="add-equipment-btn" @click="handleAddEquipment">
+              <el-icon><Plus /></el-icon> 添加闲置装备
+            </el-button>
             <div class="equipment-list">
               <div v-for="item in filteredEquipment" :key="item.id" class="equipment-item">
                 <div class="equipment-checkbox">
@@ -104,8 +107,8 @@
                     <el-icon :size="48"><Picture /></el-icon>
                     <span>暂无图片</span>
                   </div>
-                  <div class="equipment-status-tag" :class="getStatusClass(item.status)">
-                    {{ item.status === 0 ? '在售' : item.status === 1 ? '已售出' : '已下架' }}
+                  <div class="equipment-status-tag" :class="getStatusClass(item.statusDictItemCode)">
+                    {{ item.statusDictItemCode === 'on_sale' ? '在售' : item.statusDictItemCode === 'sold' ? '已售出' : '已下架' }}
                   </div>
                 </div>
                 <div class="equipment-content">
@@ -124,11 +127,11 @@
                     <el-button 
                       circle
                       size="small" 
-                      :type="item.status === 0 ? 'warning' : 'primary'" 
-                      @click="handleUpdateStatus(item.id, item.status === 0 ? 2 : 0)"
-                      :title="item.status === 0 ? '下架' : '上架'"
+                      :type="item.statusDictItemCode === 'on_sale' ? 'warning' : 'primary'" 
+                      @click="handleUpdateStatus(item.id, item.statusDictItemCode === 'on_sale' ? 'off_shelf' : 'on_sale')"
+                      :title="item.statusDictItemCode === 'on_sale' ? '下架' : '上架'"
                     >
-                      <el-icon v-if="item.status === 0"><Bottom /></el-icon>
+                      <el-icon v-if="item.statusDictItemCode === 'on_sale'"><Bottom /></el-icon>
                       <el-icon v-else><Top /></el-icon>
                     </el-button>
                     <el-button circle size="small" type="danger" @click="handleDeleteEquipment(item.id)" title="删除">
@@ -141,9 +144,7 @@
             <div v-if="filteredEquipment.length === 0" class="empty-equipment">
               <el-empty description="暂无闲置装备" />
             </div>
-            <el-button type="primary" class="add-equipment-btn" @click="handleAddEquipment">
-              <el-icon><Plus /></el-icon> 添加闲置装备
-            </el-button>
+            
           </div>
         </el-tab-pane>
         <el-tab-pane label="勋章墙" name="medals">
@@ -500,195 +501,27 @@
       :initial-index="previewInitialIndex"
     />
 
-    <!-- 闲置装备编辑对话框 -->
-    <el-dialog
-      v-model="equipmentDialogVisible"
-      :title="equipmentDialogTitle"
-      width="800px"
-    >
-      <div class="dialog-header">
-          <div class="header-left">
-            <h2 class="dialog-title">{{ equipmentDialogTitle }}</h2>
-            <p class="dialog-subtitle">让你的闲置装备找到新主人</p>
-          </div>
-          <div class="header-icon">
-            <el-icon><ShoppingBag /></el-icon>
-          </div>
-        </div>
-
-        <div class="dialog-content">
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">✦</span>
-              商品标题
-            </label>
-            <input
-              v-model="equipmentForm.title"
-              type="text"
-              class="custom-input"
-              placeholder="请输入商品标题，如：9成新达亿瓦波纹鲤4.5米"
-              maxlength="100"
-            />
-            <div class="input-hint">{{ equipmentForm.title.length }}/100</div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group half">
-              <label class="form-label">
-                <span class="label-icon">✦</span>
-                装备分类
-              </label>
-              <div class="select-wrapper">
-                <select v-model="equipmentForm.category" class="custom-select">
-                  <option value="">请选择分类</option>
-                  <option value="rod">🐟 鱼竿</option>
-                  <option value="box">📦 钓箱</option>
-                  <option value="bait">🦗 饵料</option>
-                  <option value="other">📿 其他</option>
-                </select>
-                <el-icon class="select-arrow"><ArrowDown /></el-icon>
-              </div>
-            </div>
-
-            <div class="form-group half">
-              <label class="form-label">
-                <span class="label-icon">✦</span>
-                商品价格
-              </label>
-              <div class="price-input-wrapper">
-                <span class="currency">¥</span>
-                <input
-                  v-model.number="equipmentForm.price"
-                  type="number"
-                  class="custom-input price-input"
-                  placeholder="0"
-                  min="0"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label optional">
-              <span class="label-icon">✦</span>
-              原价（选填）
-            </label>
-            <div class="price-input-wrapper">
-              <span class="currency">¥</span>
-              <input
-                v-model.number="equipmentForm.originalPrice"
-                type="number"
-                class="custom-input price-input"
-                placeholder="0"
-                min="0"
-              />
-              <span class="price-hint">填写原价可显示折扣标签</span>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">✦</span>
-              商品描述
-            </label>
-            <textarea
-              v-model="equipmentForm.description"
-              class="custom-textarea"
-              placeholder="请描述商品的新旧程度、使用情况、配件信息等，让买家更了解商品"
-              maxlength="500"
-            ></textarea>
-            <div class="input-hint">{{ equipmentForm.description.length }}/500</div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">✦</span>
-              装备图片
-            </label>
-            <div class="upload-section">
-              <div class="upload-grid">
-                <div
-                  v-for="(img, index) in equipmentForm.images"
-                  :key="index"
-                  class="upload-image-item"
-                >
-                  <img :src="img" alt="装备图片" />
-                  <div class="image-actions">
-                    <span class="delete-btn" @click="handleRemoveImage(index)">
-                      <el-icon><Delete /></el-icon>
-                    </span>
-                  </div>
-                  <span v-if="index === 0" class="cover-tag">封面</span>
-                </div>
-                
-                <div v-if="equipmentForm.images.length < 9" class="upload-trigger" @click="handleSelectImage">
-                  <div class="trigger-content">
-                    <el-icon class="upload-icon"><Plus /></el-icon>
-                    <span>上传图片</span>
-                    <span class="upload-count">{{ equipmentForm.images.length }}/9</span>
-                  </div>
-                </div>
-              </div>
-              <p class="upload-tip">建议上传真实实物照片，前一张将作为封面图</p>
-            </div>
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept="image/*"
-              multiple
-              style="display: none"
-              @change="handleFileChange"
-            />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">✦</span>
-              状态
-            </label>
-            <div class="status-selector">
-              <el-radio-group v-model="equipmentForm.status">
-                <el-radio :label="0">在售</el-radio>
-                <el-radio :label="1">已售出</el-radio>
-                <el-radio :label="2">已下架</el-radio>
-              </el-radio-group>
-            </div>
-          </div>
-        </div>
-      <template #footer>
-        <div class="dialog-footer">
-          <div class="footer-hint">
-            <span class="hint-icon">💡</span>
-            完善信息有助于提高曝光率
-          </div>
-          <div class="footer-actions">
-            <el-button class="cancel-btn" @click="equipmentDialogVisible = false">取消</el-button>
-            <el-button 
-              type="primary" 
-              class="submit-btn" 
-              @click="handleSubmitEquipment"
-            >
-              <el-icon><Check /></el-icon>
-              {{ equipmentForm.id ? '保存修改' : '添加装备' }}
-            </el-button>
-          </div>
-        </div>
-      </template>
-    </el-dialog>
+    <!-- 闲置装备发布/编辑对话框（复用组件） -->
+    <PublishGearDialog
+      v-model:visible="equipmentDialogVisible"
+      :mode="equipmentDialogMode"
+      :edit-data="equipmentEditData"
+      @success="handleEquipmentDialogSuccess"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
-import { Edit, Plus, Lock, Trophy, Calendar, Star, Location, Cpu, Close, Check, InfoFilled, Phone, Search, Delete, Select, Picture, Timer, Cloudy, Top, Bottom } from '@element-plus/icons-vue'
+import { Edit, Plus, Lock, Trophy, Calendar, Star, Location, Cpu, Close, Check, InfoFilled, Phone, Search, Delete, Select, Picture, Timer, Cloudy, Top, Bottom, ShoppingBag, ArrowDown } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as addressApi from '@/api/address'
 import * as userApi from '@/api/user'
 import * as fishingStatsApi from '@/api/fishing-stats'
 import * as dictApi from '@/api/dict'
-import { uploadUserAvatar, uploadPostImage } from '@/api/file'
-import { getUserOrders, confirmPayment, deleteOrder, batchDeleteOrders, createGearMarket, updateGearMarket, deleteGearMarket, updateGearMarketStatus, getUserGearList } from '@/api/gear'
+import { uploadUserAvatar } from '@/api/file'
+import { getUserOrders, confirmPayment, deleteOrder, batchDeleteOrders, deleteGearMarket, updateGearMarketStatus, getUserGearList } from '@/api/gear'
 import MapSelector from '@/components/common/MapSelector.vue'
 import ImagePreview from '@/components/common/ImagePreview.vue'
 import PublishGearDialog from '@/components/business/PublishGearDialog.vue'
@@ -796,18 +629,8 @@ const selectedEquipment = ref([])
 
 // 装备编辑对话框
 const equipmentDialogVisible = ref(false)
-const equipmentDialogTitle = ref('添加闲置装备')
-const fileInputRef = ref(null)
-const equipmentForm = ref({
-  id: null,
-  title: '',
-  description: '',
-  price: null,
-  originalPrice: null,
-  images: [],
-  category: '',
-  status: 0
-})
+const equipmentDialogMode = ref('create') // 'create' 或 'edit'
+const equipmentEditData = ref(null)
 
 // 过滤后的装备
 const filteredEquipment = computed(() => {
@@ -1483,13 +1306,13 @@ const handlePreviewImages = (images, index) => {
 }
 
 // 获取状态样式类
-const getStatusClass = (status) => {
-  switch (status) {
-    case 0:
+const getStatusClass = (statusDictItemCode) => {
+  switch (statusDictItemCode) {
+    case 'on_sale':
       return 'status-on-sale'
-    case 1:
+    case 'sold':
       return 'status-sold'
-    case 2:
+    case 'off_shelf':
       return 'status-off-sale'
     default:
       return 'status-off-sale'
@@ -1705,34 +1528,36 @@ const updateSelectedEquipment = () => {
 
 // 添加闲置装备
 const handleAddEquipment = () => {
-  equipmentDialogTitle.value = '添加闲置装备'
-  equipmentForm.value = {
-    id: null,
-    title: '',
-    description: '',
-    brand: '',
-    price: '',
-    images: [],
-    category: '',
-    status: 1
-  }
+  equipmentDialogMode.value = 'create'
+  equipmentEditData.value = null
   equipmentDialogVisible.value = true
 }
 
 // 编辑闲置装备
 const handleEditEquipment = (item) => {
-  equipmentDialogTitle.value = '编辑闲置装备'
-  equipmentForm.value = {
+  equipmentDialogMode.value = 'edit'
+  // 转换状态值为数据字典的code
+  const statusMap = {
+    0: 'on_sale',
+    1: 'sold',
+    2: 'off_shelf'
+  }
+  equipmentEditData.value = {
     id: item.id,
     title: item.title,
     description: item.description,
     price: item.price,
     originalPrice: item.originalPrice,
     images: item.images || [],
-    category: item.category,
-    status: item.status
+    categoryDictItemCode: item.categoryDictItemCode || item.category,
+    statusDictItemCode: item.statusDictItemCode || statusMap[item.status] || 'on_sale'
   }
   equipmentDialogVisible.value = true
+}
+
+// 对话框成功回调
+const handleEquipmentDialogSuccess = () => {
+  loadEquipmentList()
 }
 
 // 删除闲置装备
@@ -1780,111 +1605,10 @@ const handleBatchDeleteEquipment = async () => {
 }
 
 // 更新装备状态（上下架）
-const handleUpdateStatus = async (id, status) => {
+const handleUpdateStatus = async (id, statusCode) => {
   try {
-    await updateGearMarketStatus(id, status)
-    ElMessage.success(status === 1 ? '上架成功' : '下架成功')
-    await loadEquipmentList()
-  } catch (error) {
-    ElMessage.error('操作失败，请重试')
-  }
-}
-
-// 选择图片
-const handleSelectImage = () => {
-  fileInputRef.value?.click()
-}
-
-// 处理文件选择
-const handleFileChange = async (event) => {
-  const files = event.target.files
-  if (!files || files.length === 0) return
-
-  const remaining = 9 - equipmentForm.value.images.length
-  const filesToUpload = Array.from(files).slice(0, remaining)
-
-  if (filesToUpload.length === 0) {
-    ElMessage.warning('已达到最大上传数量')
-    return
-  }
-
-  try {
-    for (const file of filesToUpload) {
-      const isImage = file.type.startsWith('image/')
-      if (!isImage) {
-        ElMessage.warning('只能上传图片文件')
-        return
-      }
-
-      const isLt10M = file.size / 1024 / 1024 < 10
-      if (!isLt10M) {
-        ElMessage.warning('图片大小不能超过 10MB')
-        return
-      }
-
-      // 调用真实的文件上传接口
-      const imageUrl = await uploadPostImage(file)
-      if (imageUrl) {
-        equipmentForm.value.images.push(imageUrl)
-      }
-    }
-    ElMessage.success('图片上传成功')
-  } catch (error) {
-    console.error('图片上传失败:', error)
-    ElMessage.error('图片上传失败，请重试')
-  }
-
-  event.target.value = ''
-}
-
-// 删除图片
-const handleRemoveImage = (index) => {
-  equipmentForm.value.images.splice(index, 1)
-}
-
-// 提交装备表单
-const handleSubmitEquipment = async () => {
-  try {
-    if (!equipmentForm.value.title.trim()) {
-      ElMessage.warning('请输入商品标题')
-      return
-    }
-    if (!equipmentForm.value.category) {
-      ElMessage.warning('请选择装备分类')
-      return
-    }
-    if (!equipmentForm.value.price || equipmentForm.value.price <= 0) {
-      ElMessage.warning('请输入商品价格')
-      return
-    }
-    if (!equipmentForm.value.description.trim()) {
-      ElMessage.warning('请输入商品描述')
-      return
-    }
-    if (equipmentForm.value.images.length === 0) {
-      ElMessage.warning('请至少上传一张商品图片')
-      return
-    }
-    
-    const equipmentData = {
-      title: equipmentForm.value.title,
-      category: equipmentForm.value.category,
-      price: equipmentForm.value.price,
-      originalPrice: equipmentForm.value.originalPrice,
-      description: equipmentForm.value.description,
-      images: equipmentForm.value.images,
-      status: equipmentForm.value.status
-    }
-    
-    if (equipmentForm.value.id) {
-      await updateGearMarket(equipmentForm.value.id, equipmentData)
-      ElMessage.success('装备更新成功')
-    } else {
-      await createGearMarket(equipmentData)
-      ElMessage.success('装备添加成功')
-    }
-    
-    equipmentDialogVisible.value = false
+    await updateGearMarketStatus(id, statusCode)
+    ElMessage.success(statusCode === 'on_sale' ? '上架成功' : '下架成功')
     await loadEquipmentList()
   } catch (error) {
     ElMessage.error('操作失败，请重试')
@@ -1921,354 +1645,6 @@ const handleSubmitEquipment = async () => {
     font-size: 0.95rem;
     opacity: 0.9;
     margin: 0;
-  }
-}
-
-/* 闲置装备编辑对话框样式 */
-.el-dialog {
-  border-radius: 12px;
-  overflow: hidden;
-
-  .el-dialog__header {
-    padding: 0;
-    margin: 0;
-  }
-  
-  .el-dialog__body {
-    padding: 0;
-  }
-  
-  .el-dialog__footer {
-    padding: 0;
-    border-top: 1px solid #f0f0f0;
-  }
-}
-
-.dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 28px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px 12px 0 0;
-  color: white;
-
-  .header-left {
-    .dialog-title {
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin: 0 0 6px 0;
-    }
-
-    .dialog-subtitle {
-      font-size: 0.9rem;
-      opacity: 0.9;
-      margin: 0;
-    }
-  }
-
-  .header-icon {
-    width: 50px;
-    height: 50px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    .el-icon {
-      font-size: 26px;
-    }
-  }
-}
-
-.dialog-content {
-  padding: 24px 28px;
-  max-height: 65vh;
-  overflow-y: auto;
-}
-
-.form-group {
-  margin-bottom: 20px;
-
-  &.half {
-    flex: 1;
-  }
-}
-
-.form-row {
-  display: flex;
-  gap: 16px;
-}
-
-.form-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 10px;
-
-  .label-icon {
-    color: #667eea;
-    font-size: 0.8rem;
-  }
-
-  &.optional {
-    color: #909399;
-    font-weight: 500;
-  }
-}
-
-.custom-input,
-.custom-select,
-.custom-textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #e4e7ed;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  color: #303133;
-  background: #fafafa;
-  transition: all 0.3s;
-  outline: none;
-
-  &:focus {
-    border-color: #667eea;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  }
-
-  &::placeholder {
-    color: #c0c4cc;
-  }
-}
-
-.custom-textarea {
-  resize: vertical;
-  min-height: 100px;
-  line-height: 1.6;
-}
-
-.input-hint {
-  text-align: right;
-  font-size: 0.8rem;
-  color: #c0c4cc;
-  margin-top: 6px;
-}
-
-.select-wrapper {
-  position: relative;
-
-  .custom-select {
-    appearance: none;
-    cursor: pointer;
-    padding-right: 36px;
-  }
-
-  .select-arrow {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #909399;
-    pointer-events: none;
-  }
-}
-
-.price-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-
-  .currency {
-    position: absolute;
-    left: 14px;
-    color: #f56c6c;
-    font-weight: 600;
-    font-size: 1rem;
-  }
-
-  .price-input {
-    padding-left: 28px;
-  }
-
-  .price-hint {
-    position: absolute;
-    right: 14px;
-    font-size: 0.75rem;
-    color: #c0c4cc;
-  }
-}
-
-.upload-section {
-  .upload-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  .upload-image-item {
-    position: relative;
-    width: 100px;
-    height: 100px;
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid #e4e7ed;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .image-actions {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: opacity 0.3s;
-
-      .delete-btn {
-        width: 32px;
-        height: 32px;
-        background: #f56c6c;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-
-        .el-icon {
-          color: white;
-          font-size: 16px;
-        }
-      }
-    }
-
-    &:hover .image-actions {
-      opacity: 1;
-    }
-
-    .cover-tag {
-      position: absolute;
-      bottom: 6px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(102, 126, 234, 0.9);
-      color: white;
-      font-size: 0.7rem;
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-  }
-
-  .upload-trigger {
-    width: 100px;
-    height: 100px;
-    border: 2px dashed #e4e7ed;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s;
-    background: #fafafa;
-
-    .trigger-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-
-      .upload-icon {
-        font-size: 24px;
-        color: #667eea;
-      }
-
-      span {
-        font-size: 0.8rem;
-        color: #909399;
-      }
-
-      .upload-count {
-        font-size: 0.7rem;
-        color: #c0c4cc;
-      }
-    }
-
-    &:hover {
-      border-color: #667eea;
-      background: rgba(102, 126, 234, 0.05);
-    }
-  }
-
-  .upload-tip {
-    margin-top: 10px;
-    font-size: 0.8rem;
-    color: #c0c4cc;
-  }
-}
-
-.status-selector {
-  .el-radio-group {
-    display: flex;
-    gap: 20px;
-  }
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 28px;
-
-  .footer-hint {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    color: #909399;
-
-    .hint-icon {
-      font-size: 1rem;
-    }
-  }
-
-  .footer-actions {
-    display: flex;
-    gap: 12px;
-
-    .cancel-btn {
-      padding: 10px 24px;
-      border-radius: 10px;
-      border: 1px solid #dcdfe6;
-      color: #606266;
-
-      &:hover {
-        border-color: #667eea;
-        color: #667eea;
-      }
-    }
-
-    .submit-btn {
-      padding: 10px 28px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border: none;
-      font-weight: 600;
-
-      &:hover {
-        opacity: 0.9;
-      }
-    }
   }
 }
 
@@ -2541,7 +1917,7 @@ const handleSubmitEquipment = async () => {
 }
 
 .empty-equipment {
-  padding: 80px 0;
+  padding:40px 0;
   text-align: center;
   background: #fff;
   border-radius: 12px;
@@ -2549,7 +1925,8 @@ const handleSubmitEquipment = async () => {
 }
 
 .add-equipment-btn {
-  margin-top: 24px;
+  margin-top: 12px;
+  margin-bottom: 12px;
   width: 100%;
   border-radius: 10px;
   padding: 12px 0;
