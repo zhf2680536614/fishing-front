@@ -16,7 +16,7 @@
         <!-- Logo区域 -->
         <div class="logo" @click="$router.push('/')">
           <div class="logo-icon-container">
-            <el-icon class="logo-icon"><House /></el-icon>
+            <!-- <el-icon class="logo-icon"><House /></el-icon> -->
           </div>
           <div class="logo-text-container">
             <span class="logo-text">鱼乐圈</span>
@@ -56,10 +56,6 @@
 
         <!-- 右侧操作区 -->
         <div class="user-actions" v-if="!isMobile">
-          <el-button type="primary" class="post-btn" @click="$router.push('/community/post')">
-            <el-icon class="btn-icon"><Camera /></el-icon>
-            <span>发布战报</span>
-          </el-button>
 
           <div class="user-profile" v-if="isLogin">
             <el-dropdown trigger="click">
