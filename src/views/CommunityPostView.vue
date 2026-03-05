@@ -44,27 +44,24 @@
             <div class="form-row">
               <el-form-item label="鱼种" class="form-item-half">
                 <el-select
-                  v-model="formData.fish_species"
+                  v-model="formData.fishSpeciesDictItemCode"
                   placeholder="选择鱼种"
                   size="large"
                   class="full-width"
+                  :loading="loadingFishSpecies"
                 >
-                  <el-option label="鲫鱼" value="鲫鱼" />
-                  <el-option label="鲤鱼" value="鲤鱼" />
-                  <el-option label="青鱼" value="青鱼" />
-                  <el-option label="草鱼" value="草鱼" />
-                  <el-option label="翘嘴" value="翘嘴" />
-                  <el-option label="鲈鱼" value="鲈鱼" />
-                  <el-option label="鳜鱼" value="鳜鱼" />
-                  <el-option label="黑鱼" value="黑鱼" />
-                  <el-option label="鲢鳙" value="鲢鳙" />
-                  <el-option label="其他" value="其他" />
+                  <el-option
+                    v-for="fish in fishSpeciesList"
+                    :key="fish.itemCode"
+                    :label="fish.itemName"
+                    :value="fish.itemCode"
+                  />
                 </el-select>
               </el-form-item>
 
               <el-form-item label="重量（斤）" class="form-item-half">
                 <el-input-number
-                  v-model="formData.fish_weight"
+                  v-model="formData.fishWeight"
                   :min="0"
                   :max="500"
                   :step="0.1"
@@ -176,7 +173,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import {
   Plus,
   ArrowLeft,
@@ -192,6 +189,7 @@ import { ElMessage } from 'element-plus'
 import { createPost } from '@/api/post'
 import { uploadPostImage } from '@/api/file'
 import { getProfile } from '@/api/user'
+import { getDictItems } from '@/api/dict'
 import ImagePreview from '@/components/common/ImagePreview.vue'
 import { useUserStore } from '@/stores/user'
 import MapSelector from '@/components/common/MapSelector.vue'
@@ -202,11 +200,21 @@ const userStore = useUserStore()
 // 表单数据
 const formData = ref({
   title: '',
-  fish_species: '',
-  fish_weight: 0,
-  address: '',
   content: '',
+  typeDictTypeCode: 'post_type',
+  typeDictItemCode: 'catch_report',
+  fishSpeciesDictTypeCode: 'fish_species',
+  fishSpeciesDictItemCode: '',
+  fishWeight: 0,
+  address: '',
+  statusDictTypeCode: 'common_status',
+  statusDictItemCode: 'enabled',
+  images: []
 })
+
+// 鱼种列表
+const fishSpeciesList = ref([])
+const loadingFishSpecies = ref(false)
 
 // 处理地图选择地址
 const handleSelectAddress = (address) => {
@@ -225,6 +233,21 @@ const uploadingImages = ref(false)
 const previewVisible = ref(false)
 const previewList = ref([])
 const previewIndex = ref(0)
+
+// 加载鱼种字典
+const loadFishSpecies = async () => {
+  loadingFishSpecies.value = true
+  try {
+    const response = await getDictItems('fish_species')
+    fishSpeciesList.value = response
+    console.log('鱼种列表:', fishSpeciesList.value)
+  } catch (error) {
+    console.error('获取鱼种列表失败:', error)
+    ElMessage.error('获取鱼种列表失败')
+  } finally {
+    loadingFishSpecies.value = false
+  }
+}
 
 // 处理文件上传 - 上传到 MinIO
 const handleFileChange = async (file) => {
@@ -295,11 +318,11 @@ const submitForm = async () => {
     ElMessage.warning('请输入战报标题')
     return
   }
-  if (!formData.value.fish_species) {
+  if (!formData.value.fishSpeciesDictItemCode) {
     ElMessage.warning('请选择鱼种')
     return
   }
-  if (formData.value.fish_weight <= 0) {
+  if (formData.value.fishWeight <= 0) {
     ElMessage.warning('请输入正确的重量')
     return
   }
@@ -311,9 +334,16 @@ const submitForm = async () => {
     const submitData = {
       title: formData.value.title,
       content: formData.value.content,
-      fishSpecies: formData.value.fish_species,
-      fishWeight: formData.value.fish_weight,
+      typeDictTypeCode: formData.value.typeDictTypeCode,
+      typeDictItemCode: formData.value.typeDictItemCode,
+      fishSpeciesDictTypeCode: formData.value.fishSpeciesDictTypeCode,
+      fishSpeciesDictItemCode: formData.value.fishSpeciesDictItemCode,
+      fishWeight: formData.value.fishWeight,
       address: formData.value.address,
+      aiAuditStatusDictTypeCode: 'ai_audit_status',
+      aiAuditStatusDictItemCode: 'normal',
+      statusDictTypeCode: formData.value.statusDictTypeCode,
+      statusDictItemCode: formData.value.statusDictItemCode,
       // 提取图片URL列表（只取已上传成功的）
       images: fileList.value
         .filter(file => file.url && !file.url.startsWith('blob:'))
@@ -350,6 +380,11 @@ const submitForm = async () => {
     submitting.value = false
   }
 }
+
+// 页面加载时获取鱼种列表
+onMounted(() => {
+  loadFishSpecies()
+})
 </script>
 
 <style lang="scss" scoped>

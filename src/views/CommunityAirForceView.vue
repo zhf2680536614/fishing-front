@@ -254,7 +254,13 @@ const submitAirForce = async () => {
       content: airForceContent.value,
       images: fileList.value
         .filter(file => file.url && !file.url.startsWith('blob:'))
-        .map(file => file.url)
+        .map(file => file.url),
+      typeDictTypeCode: 'post_type',
+      typeDictItemCode: 'air_force',
+      aiAuditStatusDictTypeCode: 'ai_audit_status',
+      aiAuditStatusDictItemCode: 'normal',
+      statusDictTypeCode: 'common_status',
+      statusDictItemCode: 'enabled'
     }
 
     console.log('提交空军打卡:', submitData)
@@ -282,7 +288,10 @@ const submitAirForce = async () => {
 // 获取统计数据
 const fetchStats = async () => {
   try {
-    const result = await getAirForceStats()
+    const result = await getAirForceStats({
+      airForceTypeCode: 'air_force',
+      catchTypeCode: 'catch_report'
+    })
     if (result) {
       todayAirForce.value = result.todayAirForce || 0
       airForceRate.value = result.airForceRate || 0

@@ -305,7 +305,7 @@ const fetchPosts = async (isLoadMore = false) => {
   loading.value = true
   try {
     const pageNum = isLoadMore ? currentPage.value + 1 : 1
-    const result = await getPostList(0, pageNum, pageSize.value)
+    const result = await getPostList('catch_report', pageNum, pageSize.value)
     
     if (result && Array.isArray(result)) {
       const newPosts = result.map(item => ({
@@ -356,7 +356,10 @@ const loadMorePosts = async () => {
 // 获取空军统计数据
 const fetchAirForceStats = async () => {
   try {
-    const result = await getAirForceStats()
+    const result = await getAirForceStats({
+      airForceTypeCode: 'air_force',
+      catchTypeCode: 'catch_report'
+    })
     if (result) {
       totalAirForce.value = result.todayAirForce || 0
       airForceRate.value = result.airForceRate || 0
@@ -386,7 +389,8 @@ const fetchAirForcePosts = async (isLoadMore = false) => {
     const result = await getAirForcePosts({
       pageNum: pageNum,
       pageSize: 10,
-      sortType: airForceSort.value
+      sortType: airForceSort.value,
+      typeDictItemCode: 'air_force'
     })
     if (result && Array.isArray(result)) {
       const newPosts = result.map(item => ({

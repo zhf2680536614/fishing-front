@@ -261,7 +261,7 @@
                     </div>
                     <div class="order-actions">
                       <el-button
-                        v-if="order.status === 0"
+                        v-if="order.statusDictItemCode === 'unpaid'"
                         type="primary"
                         size="small"
                         @click="handleConfirmPayment(order.id)"
@@ -269,7 +269,7 @@
                         确认付款
                       </el-button>
                       <el-button
-                        v-if="order.status !== 2"
+                        v-if="order.statusDictItemCode !== 'shipped'"
                         type="danger"
                         size="small"
                         :icon="Delete"
@@ -686,6 +686,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import * as addressApi from '@/api/address'
 import * as userApi from '@/api/user'
 import * as fishingStatsApi from '@/api/fishing-stats'
+import * as dictApi from '@/api/dict'
 import { uploadUserAvatar, uploadPostImage } from '@/api/file'
 import { getUserOrders, confirmPayment, deleteOrder, batchDeleteOrders, createGearMarket, updateGearMarket, deleteGearMarket, updateGearMarketStatus, getUserGearList } from '@/api/gear'
 import MapSelector from '@/components/common/MapSelector.vue'
@@ -721,6 +722,7 @@ const orders = ref([])
 const orderSearchKeyword = ref('')
 const selectAllOrders = ref(false)
 const selectedOrders = ref([])
+const orderStatusDict = ref({})
 
 // 图片预览
 const previewVisible = ref(false)
@@ -847,6 +849,9 @@ const editForm = ref({
 onMounted(() => {
   // 加载用户个人中心数据
   loadUserProfile()
+  
+  // 加载订单状态字典
+  loadOrderStatusDict()
 
   // 检查是否有从其他页面跳转过来的标签页标记
   const savedTab = localStorage.getItem('activeProfileTab')
@@ -909,7 +914,10 @@ const loadFishingStats = async () => {
     if (!userId) {
       return
     }
-    const response = await fishingStatsApi.getFishingStats(userId)
+    const response = await fishingStatsApi.getFishingStats(userId, {
+      catchTypeCode: 'catch_report',
+      airForceTypeCode: 'air_force'
+    })
     fishingStats.value = response
   } catch (error) {
     ElMessage.error('加载钓鱼统计数据失败')
@@ -1378,6 +1386,16 @@ const getNextLevelExp = (currentExp) => {
   return 10000
 }
 
+// 加载订单状态字典
+const loadOrderStatusDict = async () => {
+  try {
+    const response = await dictApi.getDictItems('order_status')
+    orderStatusDict.value = response
+  } catch (error) {
+    console.error('加载订单状态字典失败:', error)
+  }
+}
+
 // 加载订单列表
 const loadOrders = async () => {
   try {
@@ -1400,15 +1418,24 @@ const formatTime = (time) => {
 }
 
 // 获取订单状态类型
-const getStatusType = (status) => {
-  switch (status) {
-    case 0: return 'warning'
-    case 1: return 'primary'
-    case 2: return 'info'
-    case 3: return 'success'
-    case 4: return 'danger'
-    default: return 'info'
+const getStatusType = (statusDictItemCode) => {
+  if (!statusDictItemCode) return 'info'
+  
+  // 从数据字典中获取状态类型
+  const statusItem = orderStatusDict.value?.find(item => item.itemCode === statusDictItemCode)
+  if (statusItem?.color) {
+    return statusItem.color
   }
+  
+  // 兜底逻辑
+  const typeMap = {
+    'unpaid': 'warning',
+    'paid': 'primary',
+    'shipped': 'info',
+    'completed': 'success',
+    'cancelled': 'danger'
+  }
+  return typeMap[statusDictItemCode] || 'info'
 }
 
 // 确认付款
@@ -1612,7 +1639,7 @@ const handleSubmit = async () => {
       await addressApi.updateAddress(form.value.id, addressData)
       ElMessage.success('地址更新成功')
     } else {
-      await addressApi.addAddress(addressData)
+      await addressApi.createAddress(addressData)
       ElMessage.success('地址添加成功')
     }
     

@@ -44,12 +44,9 @@
             装备分类
           </label>
           <div class="select-wrapper">
-            <select v-model="form.category" class="custom-select">
+            <select v-model="form.categoryDictItemCode" class="custom-select">
               <option value="">请选择分类</option>
-              <option value="rod">🐟 鱼竿</option>
-              <option value="box">📦 钓箱</option>
-              <option value="bait">🦗 饵料</option>
-              <option value="other">📿 其他</option>
+              <option v-for="item in gearCategories" :key="item.itemCode" :value="item.itemCode">{{ item.itemName }}</option>
             </select>
             <el-icon class="select-arrow"><ArrowDown /></el-icon>
           </div>
@@ -175,11 +172,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, ArrowDown, ShoppingBag, Check } from '@element-plus/icons-vue'
 import * as gearApi from '@/api/gear'
 import { uploadPostImages } from '@/api/file'
+import { getDictItems } from '@/api/dict'
 
 const props = defineProps({
   visible: {
@@ -198,10 +196,14 @@ const dialogVisible = computed({
 const fileInputRef = ref(null)
 const submitting = ref(false)
 const imageUrls = ref([])
+const gearCategories = ref([]) // 装备分类列表
 
 const form = ref({
   title: '',
-  category: '',
+  categoryDictTypeCode: 'gear_category',
+  categoryDictItemCode: '',
+  statusDictTypeCode: 'gear_market_status',
+  statusDictItemCode: 'on_sale',
   price: null,
   originalPrice: null,
   description: '',
@@ -216,7 +218,10 @@ watch(() => props.visible, (val) => {
   if (val) {
     form.value = {
       title: '',
-      category: '',
+      categoryDictTypeCode: 'gear_category',
+      categoryDictItemCode: '',
+      statusDictTypeCode: 'gear_market_status',
+      statusDictItemCode: 'on_sale',
       price: null,
       originalPrice: null,
       description: '',
@@ -224,6 +229,22 @@ watch(() => props.visible, (val) => {
     }
     imageUrls.value = []
   }
+})
+
+// 获取装备分类
+const fetchGearCategories = async () => {
+  try {
+    const data = await getDictItems('gear_category')
+    gearCategories.value = data
+  } catch (error) {
+    console.error('获取装备分类失败:', error)
+    gearCategories.value = []
+  }
+}
+
+// 组件挂载时获取装备分类
+onMounted(() => {
+  fetchGearCategories()
 })
 
 const handleSelectImage = () => {
@@ -268,7 +289,7 @@ const handleSubmit = async () => {
     ElMessage.warning('请输入商品标题')
     return
   }
-  if (!form.value.category) {
+  if (!form.value.categoryDictItemCode) {
     ElMessage.warning('请选择装备分类')
     return
   }
@@ -289,7 +310,10 @@ const handleSubmit = async () => {
   try {
     const data = {
       title: form.value.title,
-      category: form.value.category,
+      categoryDictTypeCode: form.value.categoryDictTypeCode,
+      categoryDictItemCode: form.value.categoryDictItemCode,
+      statusDictTypeCode: form.value.statusDictTypeCode,
+      statusDictItemCode: form.value.statusDictItemCode,
       price: form.value.price,
       originalPrice: form.value.originalPrice,
       description: form.value.description,

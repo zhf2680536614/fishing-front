@@ -4,8 +4,8 @@ export const createPost = (data) => {
   return request.post('/post/create', data)
 }
 
-export const getPostList = (type = 0, pageNum = 1, pageSize = 10) => {
-  return request.get('/post/list', { params: { type, pageNum, pageSize } })
+export const getPostList = (typeDictItemCode = 'catch_report', pageNum = 1, pageSize = 10) => {
+  return request.get('/post/list', { params: { typeDictItemCode, pageNum, pageSize } })
 }
 
 export const getPostDetail = (id) => {

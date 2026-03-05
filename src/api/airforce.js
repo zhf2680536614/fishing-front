@@ -10,7 +10,7 @@ export const checkinAirForce = (data) => {
 
 /**
  * 获取空军帖子列表
- * @param {Object} params - 查询参数 { pageNum, pageSize, sortType }
+ * @param {Object} params - 查询参数 { pageNum, pageSize, sortType, typeDictItemCode }
  */
 export const getAirForcePosts = (params) => {
   return request.get('/air-force/posts', { params })
@@ -18,9 +18,10 @@ export const getAirForcePosts = (params) => {
 
 /**
  * 获取空军统计数据
+ * @param {Object} params - 查询参数 { airForceTypeCode, catchTypeCode }
  */
-export const getAirForceStats = () => {
-  return request.get('/air-force/stats')
+export const getAirForceStats = (params = {}) => {
+  return request.get('/air-force/stats', { params })
 }
 
 /**

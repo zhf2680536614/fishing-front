@@ -47,8 +47,8 @@ export const deleteGearMarket = (id) => {
   return request.delete(`/gear-market/${id}`)
 }
 
-export const updateGearMarketStatus = (id, status) => {
-  return request.put(`/gear-market/${id}/status?status=${status}`)
+export const updateGearMarketStatus = (id, statusDictItemCode) => {
+  return request.put(`/gear-market/${id}/status?statusDictItemCode=${statusDictItemCode}`)
 }
 
 // 获取用户闲置装备列表

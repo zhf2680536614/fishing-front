@@ -131,6 +131,10 @@ const registerForm = reactive({
   confirmPassword: '',
   nickname: '',
   phone: '',
+  roleDictTypeCode: 'user_role',
+  roleDictItemCode: 'user',
+  statusDictTypeCode: 'user_status',
+  statusDictItemCode: 'normal',
 })
 
 const validateConfirmPassword = (rule, value, callback) => {
@@ -184,6 +188,10 @@ const handleRegister = async () => {
           password: registerForm.password,
           nickname: registerForm.nickname || registerForm.username,
           phone: registerForm.phone,
+          roleDictTypeCode: registerForm.roleDictTypeCode,
+          roleDictItemCode: registerForm.roleDictItemCode,
+          statusDictTypeCode: registerForm.statusDictTypeCode,
+          statusDictItemCode: registerForm.statusDictItemCode,
         })
         userStore.setToken(res.token)
         userStore.setUserInfo(res)

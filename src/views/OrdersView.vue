@@ -18,13 +18,13 @@
                   <div class="order-content">
                     <div class="order-item">
                       <div class="order-item-image">
-                        <img :src="'/api/gear-market/' + order.gearId + '/image'" alt="装备图片" />
+                        <img :src="order.gearImages ? JSON.parse(order.gearImages)[0] : '/api/gear-market/' + order.gearId + '/image'" alt="装备图片" />
                       </div>
                       <div class="order-item-info">
                         <h4 class="order-item-title">{{ order.gearTitle }}</h4>
                         <div class="order-item-price">
                           <span>¥{{ order.gearPrice }}</span>
-                          <span>x{{ order.quantity }}</span>
+                          <span>x1</span>
                         </div>
                       </div>
                     </div>
@@ -34,19 +34,19 @@
                       总计：<span class="total-price">¥{{ order.totalAmount }}</span>
                     </div>
                     <div class="order-actions">
-                      <el-button v-if="order.status === 0" type="primary" size="small" @click="handlePay(order)">
+                      <el-button v-if="order.statusDictItemCode === 'unpaid'" type="primary" size="small" @click="handlePay(order)">
                         立即支付
                       </el-button>
-                      <el-button v-if="order.status === 1" type="info" size="small" @click="handleCancel(order)">
+                      <el-button v-if="order.statusDictItemCode === 'paid'" type="info" size="small" @click="handleCancel(order)">
                         取消订单
                       </el-button>
-                      <el-button v-if="order.status === 2" type="success" size="small" @click="handleConfirmReceipt(order)">
+                      <el-button v-if="order.statusDictItemCode === 'shipped'" type="success" size="small" @click="handleConfirmReceipt(order)">
                         确认收货
                       </el-button>
-                      <el-button v-if="order.status === 3" type="warning" size="small" @click="handleReview(order)">
+                      <el-button v-if="order.statusDictItemCode === 'completed'" type="warning" size="small" @click="handleReview(order)">
                         评价
                       </el-button>
-                      <el-button v-if="order.status !== 4" type="default" size="small" @click="handleViewDetail(order)">
+                      <el-button v-if="order.statusDictItemCode !== 'cancelled'" type="default" size="small" @click="handleViewDetail(order)">
                         查看详情
                       </el-button>
                     </div>
@@ -55,11 +55,11 @@
               </div>
             </div>
           </el-tab-pane>
-          <el-tab-pane label="待付款" name="0" />
-          <el-tab-pane label="待发货" name="1" />
-          <el-tab-pane label="待收货" name="2" />
-          <el-tab-pane label="已完成" name="3" />
-          <el-tab-pane label="已取消" name="4" />
+          <el-tab-pane label="待付款" name="unpaid" />
+          <el-tab-pane label="待发货" name="paid" />
+          <el-tab-pane label="待收货" name="shipped" />
+          <el-tab-pane label="已完成" name="completed" />
+          <el-tab-pane label="已取消" name="cancelled" />
         </el-tabs>
       </div>
     </div>
@@ -83,40 +83,19 @@ const loading = ref(false)
 const loadOrders = async () => {
   loading.value = true
   try {
-    // 这里应该调用订单列表接口
-    // 暂时使用模拟数据
-    orders.value = [
-      {
-        id: 1,
-        userId: 1,
-        gearId: 1,
-        gearTitle: '9成新钓竿，碳素材质，手感轻盈',
-        gearPrice: 199.99,
-        quantity: 1,
-        totalAmount: 199.99,
-        status: 0,
-        statusText: '待付款',
-        address: '北京市朝阳区某某街道123号',
-        contactPhone: '13800138000',
-        createTime: new Date().toISOString()
-      },
-      {
-        id: 2,
-        userId: 1,
-        gearId: 2,
-        gearTitle: '全新钓箱，带升降脚，大容量',
-        gearPrice: 399.99,
-        quantity: 1,
-        totalAmount: 399.99,
-        status: 1,
-        statusText: '待发货',
-        address: '北京市朝阳区某某街道123号',
-        contactPhone: '13800138000',
-        createTime: new Date().toISOString()
-      }
-    ]
+    // 从本地存储获取用户ID
+    const userId = localStorage.getItem('userId') || 1
+    // 调用订单列表接口
+    const response = await orderApi.getUserOrders(userId)
+    // 根据当前选中的状态筛选订单
+    if (activeStatus.value === 'all') {
+      orders.value = response
+    } else {
+      orders.value = response.filter(order => order.statusDictItemCode === activeStatus.value)
+    }
   } catch (error) {
     ElMessage.error('加载订单失败')
+    orders.value = []
   } finally {
     loading.value = false
   }

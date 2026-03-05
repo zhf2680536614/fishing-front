@@ -6,21 +6,21 @@ export const getSpotList = () => {
   return request.get('/fishing-spot/list')
 }
 
-export const getRecommendSpots = (type) => {
+export const getRecommendSpots = (typeDictItemCode) => {
   const params = {}
-  if (type !== undefined && type !== null) {
-    params.type = type
+  if (typeDictItemCode !== undefined && typeDictItemCode !== null) {
+    params.typeDictItemCode = typeDictItemCode
   }
   return request.get('/fishing-spot/recommend', { params })
 }
 
-export const searchSpots = (keyword, type) => {
+export const searchSpots = (keyword, typeDictItemCode) => {
   const params = {}
   if (keyword) {
     params.keyword = keyword
   }
-  if (type !== undefined && type !== null) {
-    params.type = type
+  if (typeDictItemCode !== undefined && typeDictItemCode !== null) {
+    params.typeDictItemCode = typeDictItemCode
   }
   return request.get('/fishing-spot/search', { params })
 }

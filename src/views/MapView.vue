@@ -34,15 +34,28 @@
                 <div class="result-address">{{ spot.address }}</div>
               </div>
             </div>
-            <div class="search-results empty" v-if="showSearchResults && searchKeyword && searchResults.length === 0 && !searchLoading">
+            <div
+              class="search-results empty"
+              v-if="
+                showSearchResults && searchKeyword && searchResults.length === 0 && !searchLoading
+              "
+            >
               <div class="no-result">未找到相关钓点</div>
             </div>
           </div>
-          <el-select v-model="spotType" class="type-select" @change="handleTypeChange" placeholder="全部类型">
+          <el-select
+            v-model="spotType"
+            class="type-select"
+            @change="handleTypeChange"
+            placeholder="全部类型"
+          >
             <el-option label="全部类型" value="all" />
-            <el-option label="野钓点" :value="0" />
-            <el-option label="黑坑/收费" :value="1" />
-            <el-option label="路亚基地" :value="2" />
+            <el-option
+              v-for="type in spotTypes"
+              :key="type.itemCode"
+              :label="type.itemName"
+              :value="type.itemCode"
+            />
           </el-select>
         </div>
       </div>
@@ -51,7 +64,7 @@
     <!-- 地图容器 -->
     <div class="map-container">
       <div id="map" class="map"></div>
-      
+
       <!-- 加载蒙版 -->
       <div class="map-loading-mask" v-if="mapLoading">
         <div class="loading-content">
@@ -68,9 +81,9 @@
         </div>
         <div class="sidebar-content" v-if="selectedSpot">
           <div class="spot-image-carousel">
-            <el-carousel 
-              height="220px" 
-              indicator-position="none" 
+            <el-carousel
+              height="220px"
+              indicator-position="none"
               v-if="selectedSpot.images && selectedSpot.images.length > 0"
               :autoplay="false"
             >
@@ -81,10 +94,13 @@
             <div v-else class="spot-image-single">
               <img :src="selectedSpot.image" alt="钓点图片" />
             </div>
-            <div class="carousel-indicators" v-if="selectedSpot.images && selectedSpot.images.length > 1">
-              <span 
-                v-for="(_, index) in selectedSpot.images" 
-                :key="index" 
+            <div
+              class="carousel-indicators"
+              v-if="selectedSpot.images && selectedSpot.images.length > 1"
+            >
+              <span
+                v-for="(_, index) in selectedSpot.images"
+                :key="index"
                 class="indicator-dot"
               ></span>
             </div>
@@ -186,10 +202,13 @@ import {
   Loading,
 } from '@element-plus/icons-vue'
 import { getSpotList, getRecommendSpots, searchSpots, analyzeSpot } from '@/api/spot'
+import { getDictItems } from '@/api/dict'
 
 // 响应式数据
 const searchKeyword = ref('')
 const spotType = ref('all')
+const spotTypes = ref([]) // 钓点类型列表
+const loading = ref(false)
 const showSidebar = ref(false)
 const selectedSpot = ref(null)
 const spots = ref([])
@@ -211,13 +230,13 @@ const handleSearchInput = () => {
   if (searchTimer) {
     clearTimeout(searchTimer)
   }
-  
+
   if (!searchKeyword.value) {
     searchResults.value = []
     showSearchResults.value = false
     return
   }
-  
+
   searchTimer = setTimeout(async () => {
     searchLoading.value = true
     showSearchResults.value = true
@@ -291,13 +310,10 @@ const selectSpot = (spot) => {
 const fetchAIAnalysis = (spot) => {
   aiLoading.value = true
   aiAnalysis.value = ''
-  
-  const typeMap = { wild: 0, paid: 1, lure: 2 }
-  const spotType = typeof spot.type === 'number' ? spot.type : typeMap[spot.type]
-  
+
   analyzeSpot(
     spot.name,
-    spotType,
+    spot.type, // 直接传递类型编码
     spot.address,
     spot.fishInfo,
     (content) => {
@@ -310,7 +326,7 @@ const fetchAIAnalysis = (spot) => {
       aiLoading.value = false
       aiAnalysis.value = 'AI 分析暂时不可用'
       console.error('AI 分析失败:', error)
-    }
+    },
   )
 }
 
@@ -319,7 +335,9 @@ const navigateToSpot = () => {
   if (selectedSpot.value && selectedSpot.value.longitude && selectedSpot.value.latitude) {
     const { longitude, latitude, name } = selectedSpot.value
     // 调用高德地图导航
-    window.open(`https://uri.amap.com/marker?position=${longitude},${latitude}&name=${encodeURIComponent(name)}&src=application`)
+    window.open(
+      `https://uri.amap.com/marker?position=${longitude},${latitude}&name=${encodeURIComponent(name)}&src=application`,
+    )
   }
 }
 
@@ -353,17 +371,17 @@ const getTypeText = (type) => {
 const initMap = async () => {
   // 等待 DOM 渲染完成
   await nextTick()
-  
+
   // 如果已经初始化过，直接返回
   if (mapInitialized && map.value) {
     return
   }
-  
+
   // 如果已经有加载中的 Promise，直接等待
   if (mapLoadingPromise) {
     return mapLoadingPromise
   }
-  
+
   // 加载高德地图API
   if (!window.AMap) {
     mapLoadingPromise = new Promise((resolve, reject) => {
@@ -383,7 +401,7 @@ const initMap = async () => {
       }
       document.head.appendChild(script)
     })
-    
+
     try {
       await mapLoadingPromise
     } finally {
@@ -404,19 +422,19 @@ const loadMap = async () => {
     if (!mapElement) {
       throw new Error('地图容器元素不存在')
     }
-    
+
     // 销毁旧的地图实例（如果存在）
     if (map.value) {
       map.value.destroy()
       map.value = null
     }
-    
+
     // 初始化地图
     map.value = new window.AMap.Map('map', {
       center: [120.15507, 30.274085], // 默认杭州
       zoom: 11,
       viewMode: '3D',
-      scrollWheel: false // 禁用鼠标滚轮缩放
+      scrollWheel: false, // 禁用鼠标滚轮缩放
     })
 
     // 异步加载控件插件
@@ -426,10 +444,12 @@ const loadMap = async () => {
         // 添加比例尺控件
         map.value.addControl(new window.AMap.Scale())
         // 添加工具条控件（包含缩放按钮）
-        map.value.addControl(new window.AMap.ToolBar({
-          position: 'LT',
-          offset: [20, 20]
-        }))
+        map.value.addControl(
+          new window.AMap.ToolBar({
+            position: 'LT',
+            offset: [20, 20],
+          }),
+        )
       } catch (e) {
         console.warn('添加地图控件失败:', e)
       }
@@ -439,7 +459,7 @@ const loadMap = async () => {
     await loadSpots()
     // 加载推荐钓点
     await loadRecommendSpots()
-    
+
     // 加载完成
     mapLoading.value = false
   } catch (error) {
@@ -486,21 +506,32 @@ const loadRecommendSpots = async () => {
   }
 }
 
+// 获取钓点类型
+const fetchSpotTypes = async () => {
+  try {
+    const data = await getDictItems('fishing_spot_type')
+    spotTypes.value = data
+  } catch (error) {
+    console.error('获取钓点类型失败:', error)
+    spotTypes.value = []
+  }
+}
+
 // 添加标记
 const addMarkers = () => {
   if (!map.value) return
 
   // 清除之前的标记
-  markers.value.forEach(marker => marker.remove())
+  markers.value.forEach((marker) => marker.remove())
   markers.value = []
 
   // 添加新标记
-  spots.value.forEach(spot => {
+  spots.value.forEach((spot) => {
     if (spot.longitude && spot.latitude) {
       // 使用默认图标，避免SVG数据URL可能的问题
       const marker = new window.AMap.Marker({
         position: [spot.longitude, spot.latitude],
-        title: spot.name
+        title: spot.name,
       })
 
       // 添加点击事件
@@ -517,6 +548,7 @@ const addMarkers = () => {
 // 初始化
 onMounted(() => {
   initMap()
+  fetchSpotTypes() // 获取钓点类型
   document.addEventListener('click', handleClickOutside)
 })
 
@@ -634,12 +666,12 @@ onUnmounted(() => {
 
     .type-select {
       width: 150px;
-      
-      :deep(.el-input__wrapper) {
+
+      :deep(.el-select__wrapper) {
         height: 50px;
         box-sizing: border-box;
       }
-      
+
       :deep(.el-input__inner) {
         height: 48px;
         line-height: 48px;

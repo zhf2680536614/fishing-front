@@ -25,11 +25,12 @@
                 />
                 <el-select v-model="category" class="category-select" @change="handleSearch">
                   <el-option label="全部类别" value="all" />
-                  <el-option label="鱼竿" value="rod" />
-                  <el-option label="钓箱" value="box" />
-                  <el-option label="饵料" value="bait" />
-                  <el-option label="其他" value="other" />
+                  <el-option v-for="item in gearCategories" :key="item.itemCode" :label="item.itemName" :value="item.itemCode" />
                 </el-select>
+                <!-- <el-select v-model="status" class="category-select" @change="handleSearch">
+                  <el-option label="全部状态" value="" />
+                  <el-option v-for="item in gearStatuses" :key="item.itemCode" :label="item.itemName" :value="item.itemCode" />
+                </el-select> -->
                 <el-select v-model="sortBy" class="sort-select" @change="handleSearch">
                   <el-option label="最新发布" value="newest" />
                   <el-option label="价格从低到高" value="price_asc" />
@@ -124,11 +125,12 @@
                 />
                 <el-select v-model="reviewCategory" class="category-select" @change="handleReviewSearch">
                   <el-option label="全部类别" value="all" />
-                  <el-option label="鱼竿" value="rod" />
-                  <el-option label="钓箱" value="box" />
-                  <el-option label="饵料" value="bait" />
-                  <el-option label="其他" value="other" />
+                  <el-option v-for="item in gearCategories" :key="item.itemCode" :label="item.itemName" :value="item.itemCode" />
                 </el-select>
+                <!-- <el-select v-model="reviewStatus" class="category-select" @change="handleReviewSearch">
+                  <el-option label="全部状态" value="" />
+                  <el-option v-for="item in gearReviewStatuses" :key="item.itemCode" :label="item.itemName" :value="item.itemCode" />
+                </el-select> -->
                 <el-button type="primary" class="search-btn" @click="handleReviewSearch">
                   <el-icon><Search /></el-icon> 搜索
                 </el-button>
@@ -285,12 +287,9 @@
                 装备分类
               </label>
               <div class="select-wrapper">
-                <select v-model="reviewForm.category" class="custom-select">
+                <select v-model="reviewForm.categoryDictItemCode" class="custom-select">
                   <option value="">请选择分类</option>
-                  <option value="rod">🐟 鱼竿</option>
-                  <option value="box">📦 钓箱</option>
-                  <option value="bait">🦗 饵料</option>
-                  <option value="other">📿 其他</option>
+                  <option v-for="item in gearCategories" :key="item.itemCode" :value="item.itemCode">{{ item.itemName }}</option>
                 </select>
                 <el-icon class="select-arrow"><ArrowDown /></el-icon>
               </div>
@@ -409,11 +408,13 @@ import * as gearApi from '@/api/gear'
 import { uploadPostImages } from '@/api/file'
 import PublishGearDialog from '@/components/business/PublishGearDialog.vue'
 import ImagePreview from '@/components/common/ImagePreview.vue'
+import { getDictItems } from '@/api/dict'
 
 // 响应式数据
 const activeTab = ref('second-hand')
 const searchKeyword = ref('')
 const category = ref('all')
+const status = ref('on_sale')
 const sortBy = ref('newest')
 const currentPage = ref(1)
 const pageSize = ref(8) // 首次加载8条
@@ -422,6 +423,8 @@ const equipmentItems = ref([])
 const loading = ref(false)
 const loadingMore = ref(false)
 const hasMore = ref(true)
+const gearCategories = ref([]) // 装备分类列表
+const gearStatuses = ref([]) // 装备状态列表
 
 // 路由
 const router = useRouter()
@@ -433,6 +436,7 @@ const previewInitialIndex = ref(0)
 
 const reviewKeyword = ref('')
 const reviewCategory = ref('all')
+const reviewStatus = ref('published')
 const reviews = ref([])
 const totalReviews = ref(0)
 const reviewLoading = ref(false)
@@ -440,6 +444,7 @@ const reviewLoadingMore = ref(false)
 const hasMoreReviews = ref(true)
 const reviewPageNum = ref(1)
 const reviewPageSize = 8
+const gearReviewStatuses = ref([]) // 装备测评状态列表
 
 // 发布对话框
 const publishDialogVisible = ref(false)
@@ -450,7 +455,10 @@ const reviewSubmitting = ref(false)
 const reviewFileInputRef = ref(null)
 const reviewForm = ref({
   gearName: '',
-  category: '',
+  categoryDictTypeCode: 'gear_category',
+  categoryDictItemCode: '',
+  statusDictTypeCode: 'gear_review_status',
+  statusDictItemCode: 'published',
   rating: 5,
   title: '',
   content: '',
@@ -471,7 +479,8 @@ const loadEquipmentList = async (isLoadMore = false) => {
     const response = await gearApi.getGearMarketList({
       pageNum: currentPage.value,
       pageSize: pageSize.value,
-      category: category.value,
+      categoryDictItemCode: category.value === 'all' ? null : category.value,
+      statusDictItemCode: status.value,
       keyword: searchKeyword.value,
       sortBy: sortBy.value
     })
@@ -495,6 +504,39 @@ const loadEquipmentList = async (isLoadMore = false) => {
   }
 }
 
+// 获取装备分类
+const fetchGearCategories = async () => {
+  try {
+    const data = await getDictItems('gear_category')
+    gearCategories.value = data
+  } catch (error) {
+    console.error('获取装备分类失败:', error)
+    gearCategories.value = []
+  }
+}
+
+// 获取装备状态
+const fetchGearStatuses = async () => {
+  try {
+    const data = await getDictItems('gear_market_status')
+    gearStatuses.value = data
+  } catch (error) {
+    console.error('获取装备状态失败:', error)
+    gearStatuses.value = []
+  }
+}
+
+// 获取装备测评状态
+const fetchGearReviewStatuses = async () => {
+  try {
+    const data = await getDictItems('gear_review_status')
+    gearReviewStatuses.value = data
+  } catch (error) {
+    console.error('获取装备测评状态失败:', error)
+    gearReviewStatuses.value = []
+  }
+}
+
 // 加载测评列表
 const loadReviewList = async (isLoadMore = false) => {
   if (isLoadMore) {
@@ -509,7 +551,8 @@ const loadReviewList = async (isLoadMore = false) => {
     const response = await gearApi.getGearReviewList({
       pageNum: reviewPageNum.value,
       pageSize: reviewPageSize,
-      category: reviewCategory.value === 'all' ? null : reviewCategory.value,
+      categoryDictItemCode: reviewCategory.value === 'all' ? null : reviewCategory.value,
+      statusDictItemCode: reviewStatus.value,
       keyword: reviewKeyword.value
     })
     if (isLoadMore) {
@@ -539,6 +582,7 @@ const handleLoadMore = () => {
 const handleReset = () => {
   searchKeyword.value = ''
   category.value = 'all'
+  status.value = 'on_sale'
   sortBy.value = 'newest'
   handleSearch()
 }
@@ -562,7 +606,10 @@ const handlePublishSuccess = () => {
 const handleWriteReview = () => {
   reviewForm.value = {
     gearName: '',
-    category: '',
+    categoryDictTypeCode: 'gear_category',
+    categoryDictItemCode: '',
+    statusDictTypeCode: 'gear_review_status',
+    statusDictItemCode: 'published',
     rating: 5,
     title: '',
     content: '',
@@ -611,7 +658,7 @@ const submitReview = async () => {
     ElMessage.warning('请输入装备名称')
     return
   }
-  if (!reviewForm.value.category) {
+  if (!reviewForm.value.categoryDictItemCode) {
     ElMessage.warning('请选择分类')
     return
   }
@@ -708,12 +755,15 @@ watch(activeTab, (newTab) => {
   if (newTab === 'second-hand') {
     loadEquipmentList()
   } else {
+    fetchGearReviewStatuses()
     loadReviewList()
   }
 })
 
 // 页面加载时
 onMounted(() => {
+  fetchGearCategories()
+  fetchGearStatuses()
   loadEquipmentList()
 })
 </script>

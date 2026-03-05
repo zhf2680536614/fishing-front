@@ -157,6 +157,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as gearApi from '@/api/gear'
 import * as addressApi from '@/api/address'
+import * as orderApi from '@/api/order'
+import * as store from '@/stores/user'
 import ImagePreview from '@/components/common/ImagePreview.vue'
 
 const route = useRoute()
@@ -231,7 +233,7 @@ const handleBuy = async () => {
 // 确认购买
 const confirmBuy = async () => {
   // 检查是否是自己的商品
-  const userStore = useUserStore()
+  const userStore = store.useUserStore()
   if (userStore.userId && gearDetail.value.userId && userStore.userId.toString() === gearDetail.value.userId.toString()) {
     ElMessage.warning('不能购买自己发布的商品')
     return
@@ -240,10 +242,12 @@ const confirmBuy = async () => {
   try {
     const orderData = {
       gearId: gearDetail.value.id,
+      statusDictTypeCode: 'order_status',
+      statusDictItemCode: 'unpaid',
       address: selectedAddress.value,
       contactPhone: contactPhone.value
     }
-    await gearApi.createOrder(orderData)
+    await orderApi.createOrder(orderData)
     ElMessage.success('购买成功！')
     buyDialogVisible.value = false
   } catch (error) {
