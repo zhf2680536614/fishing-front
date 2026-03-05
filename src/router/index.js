@@ -95,7 +95,7 @@ router.beforeEach((to, from, next) => {
     }
     try {
       const user = JSON.parse(userInfo)
-      if (user.roleDictItemCode !== 'admin') {
+      if (user.role !== 'admin') {
         ElMessage.error('无权限访问管理后台')
         next({ path: '/home' })
         return
