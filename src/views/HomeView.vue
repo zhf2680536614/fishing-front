@@ -250,7 +250,7 @@
             <el-icon class="feature-arrow"><ArrowRight /></el-icon>
           </div>
 
-          <div class="feature-card green" @click="$router.push('/ai-tools')">
+          <div class="feature-card green" @click="$router.push({ path: '/ai-tools', query: { tab: 'fish-id' } })">
             <div class="feature-icon-wrapper">
               <el-icon class="feature-icon"><Camera /></el-icon>
             </div>
@@ -305,6 +305,7 @@ import {
   getTideStatus,
 } from '@/api'
 import { getHomeStats, getTodayHotPosts } from '@/api/home'
+import * as dictApi from '@/api/dict'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -329,7 +330,7 @@ const greeting = computed(() => {
 })
 
 const weatherData = ref({
-  location: '杭州市 · 西湖区',
+  location: '重庆市 · 巴南区',
   temperature: 24,
   weather: '多云转阴',
   wind: '东南风 3级',
@@ -346,6 +347,7 @@ const weatherData = ref({
 })
 
 const hotPosts = ref([])
+const fishSpeciesDict = ref({})
 
 const circumference = 2 * Math.PI * 50
 
@@ -361,6 +363,20 @@ const goToDetail = (id) => {
 const goToAirForceCommunity = () => {
   sessionStorage.setItem('community_active_tab', 'air-force')
   router.push('/community')
+}
+
+// 加载鱼种类字典数据
+const loadFishSpeciesDict = async () => {
+  try {
+    const items = await dictApi.getDictItems('fish_species')
+    // 将字典数据转换为以code为键，name为值的对象
+    fishSpeciesDict.value = items.reduce((acc, item) => {
+      acc[item.itemCode] = item.itemName
+      return acc
+    }, {})
+  } catch (error) {
+    console.error('获取鱼种类字典失败:', error)
+  }
 }
 
 // 加载首页统计数据
@@ -382,7 +398,7 @@ const loadHotPosts = async () => {
     hotPosts.value = posts.map(item => ({
       id: item.id,
       title: item.title,
-      fish_species: item.fishSpecies,
+      fish_species: fishSpeciesDict.value[item.fishSpecies] || item.fishSpecies,
       fish_weight: item.fishWeight,
       coverImage: item.coverImage || 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?q=80&w=800&auto=format&fit=crop',
       user_nickname: item.userNickname || '匿名用户',
@@ -402,8 +418,19 @@ const loadWeatherAndFishingData = async () => {
     loadingFishingIndex.value = true
     console.log('开始获取位置')
 
-    const location = await getUserLocation()
-    console.log('获取到的位置信息:', location)
+    let location
+    try {
+      location = await getUserLocation()
+      console.log('获取到的位置信息:', location)
+    } catch (error) {
+      console.error('定位失败，使用默认地址:', error)
+      // 定位失败时使用默认地址
+      location = {
+        address: '重庆市 · 巴南区',
+        latitude: 29.3842,
+        longitude: 106.5577
+      }
+    }
     loadingLocation.value = false
 
     // 第二阶段：获取天气数据
@@ -416,7 +443,7 @@ const loadWeatherAndFishingData = async () => {
     // 先更新天气相关数据
     weatherData.value = {
       ...weatherData.value,
-      location: location.address || '杭州市 · 西湖区',
+      location: location.address || '重庆市 · 巴南区',
       temperature: weather.temperature,
       weather: weather.weather,
       wind: weather.wind,
@@ -429,7 +456,7 @@ const loadWeatherAndFishingData = async () => {
     // 第三阶段：获取适钓指数和AI建议
     console.log('开始获取适钓指数')
     const fishingResponse = await fetchFishingIndex({
-      location: location.address || '杭州市 · 西湖区',
+      location: location.address || '重庆市 · 巴南区',
       temperature: weather.temperature,
       weather: weather.weather,
       windSpeed: weather.windSpeed,
@@ -467,7 +494,8 @@ const loadWeatherAndFishingData = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadFishSpeciesDict()
   loadWeatherAndFishingData()
   loadHomeStats()
   loadHotPosts()

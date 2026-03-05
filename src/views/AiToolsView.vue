@@ -119,7 +119,7 @@
                 </div>
 
                 <!-- 快捷问题 -->
-                <div class="quick-questions" v-if="chatMessages.length === 0 && !isStreaming && !isTyping">
+                <div class="quick-questions" v-if="!isStreaming && !isTyping">
                   <div class="quick-title">💡 快捷问题</div>
                   <div class="quick-tags">
                     <el-button
@@ -739,6 +739,12 @@ const useQuickQuestion = (question) => {
 }
 
 onMounted(() => {
+  // 检查URL查询参数，设置默认选中的标签栏
+  const urlParams = new URLSearchParams(window.location.search)
+  const tabParam = urlParams.get('tab')
+  if (tabParam) {
+    activeTab.value = tabParam
+  }
   scrollToBottom()
 })
 </script>
@@ -792,10 +798,10 @@ onMounted(() => {
     background: transparent;
 
     .el-tabs__nav {
-      border-radius: 12px 12px 0 0;
-      overflow: hidden;
-      background: white;
-    }
+          border-radius: 0;
+          overflow: hidden;
+          background: white;
+        }
 
     .el-tabs__item {
       font-size: 16px;
@@ -837,7 +843,7 @@ onMounted(() => {
 
   :deep(.el-tabs__content) {
     background: transparent;
-    border-radius: 0 0 12px 12px;
+    border-radius: 0;
   }
 }
 
