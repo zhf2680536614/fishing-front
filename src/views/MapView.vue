@@ -602,7 +602,7 @@ onUnmounted(() => {
 
 .search-section {
   position: relative;
-  z-index: 1;
+  z-index: 1000;
   background: white;
   padding: 4vh 0;
   box-shadow: var(--shadow-md);
