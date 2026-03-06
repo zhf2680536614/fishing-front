@@ -203,7 +203,7 @@ onMounted(() => {
         <el-table-column label="AI生成" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="getAiGeneratedType(row.isAiGeneratedDictItemCode)" effect="light" size="small">
-              {{ getAiGeneratedName(row.isAiGeneratedDictItemCode) }}
+              {{ row.isAiGeneratedDictItemName }}
             </el-tag>
           </template>
         </el-table-column>
@@ -256,7 +256,7 @@ onMounted(() => {
             <div class="info-item">
               <span class="info-label">AI生成：</span>
               <el-tag :type="getAiGeneratedType(viewForm.isAiGeneratedDictItemCode)" effect="light" size="small">
-                {{ getAiGeneratedName(viewForm.isAiGeneratedDictItemCode) }}
+                {{ viewForm.isAiGeneratedDictItemName }}
               </el-tag>
             </div>
           </div>
@@ -295,28 +295,18 @@ onMounted(() => {
 <style lang="scss" scoped>
 .comment-manage-view {
   padding: 20px;
-  background-color: var(--el-bg-color-page);
-  min-height: calc(100vh - 40px);
-
-  :deep(.el-card) {
-    border-radius: 8px;
-    border: 1px solid var(--el-border-color-light);
-  }
 
   .search-card {
-    margin-bottom: 16px;
-
+    margin-bottom: 20px;
+    
     .search-form {
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
-
+      gap: 10px;
+      
       .el-form-item {
         margin-bottom: 0;
-        margin-right: 0;
-        flex: 0 0 auto;
-
+        
         .w-150 {
           width: 150px;
         }
@@ -328,17 +318,10 @@ onMounted(() => {
         .w-120 {
           width: 120px;
         }
-
-        @media (max-width: 1200px) {
-          margin-bottom: 16px;
-        }
       }
-
+      
       .action-buttons {
-        margin-right: 0;
-        display: flex;
-        gap: 8px;
-        align-items: center;
+        margin-left: auto;
       }
     }
   }
@@ -348,35 +331,16 @@ onMounted(() => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
-
+      margin-bottom: 20px;
+      
       .toolbar-title {
         font-size: 16px;
         font-weight: 600;
         color: var(--el-text-color-primary);
-        position: relative;
-        padding-left: 10px;
         display: flex;
         align-items: center;
         gap: 8px;
-
-        &::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 4px;
-          height: 16px;
-          background-color: var(--el-color-primary);
-          border-radius: 2px;
-        }
       }
-    }
-
-    :deep(.el-table) {
-      border-radius: 4px;
-      overflow: hidden;
     }
 
     .author-info {
@@ -395,9 +359,14 @@ onMounted(() => {
     }
 
     .pagination-wrapper {
-      margin-top: 20px;
       display: flex;
       justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .text-placeholder {
+      color: var(--el-text-color-secondary);
+      font-size: 12px;
     }
   }
 

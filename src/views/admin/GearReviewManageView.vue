@@ -33,7 +33,7 @@ const editForm = ref({
   gearName: '',
   categoryDictTypeCode: 'gear_category',
   categoryDictItemCode: '',
-  statusDictTypeCode: 'review_status',
+  statusDictTypeCode: 'gear_review_status',
   statusDictItemCode: '',
   images: []
 })
@@ -130,7 +130,7 @@ const handleEdit = async (row) => {
       gearName: review.gearName,
       categoryDictTypeCode: review.categoryDictTypeCode || 'gear_category',
       categoryDictItemCode: review.categoryDictItemCode,
-      statusDictTypeCode: review.statusDictTypeCode || 'review_status',
+      statusDictTypeCode: review.statusDictTypeCode || 'gear_review_status',
       statusDictItemCode: review.statusDictItemCode,
       images: review.images || []
     }
@@ -231,11 +231,11 @@ const fetchDictOptions = async () => {
   }
 
   try {
-    const statusItems = await getDictItems('review_status')
+    const statusItems = await getDictItems('gear_review_status')
     statusOptions.value = statusItems.map(item => ({
       label: item.itemName,
       value: item.itemCode,
-      type: item.itemCode === 'approved' ? 'success' : item.itemCode === 'pending' ? 'warning' : 'danger'
+      type: item.itemCode === 'published' ? 'success' : item.itemCode === 'pending' ? 'warning' : 'danger'
     }))
   } catch (error) {
     console.error('获取测评状态字典失败:', error)
@@ -248,6 +248,28 @@ onMounted(() => {
 })
 </script>
 
+<style scoped>
+.author-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-container {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.author-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70px;
+}
+</style>
+
 <template>
   <div class="gear-review-manage-view">
     <!-- 顶部搜索卡片 -->
@@ -259,7 +281,7 @@ onMounted(() => {
         <el-form-item label="装备名称">
           <el-input v-model="queryForm.gearName" placeholder="请输入装备名称" clearable />
         </el-form-item>
-        <el-form-item label="装备分类">
+        <el-form-item label="装备分类" style="width: 200px;">
           <el-select v-model="queryForm.categoryDictItemCode" placeholder="请选择分类" clearable class="w-150">
             <el-option
               v-for="item in categoryOptions"
@@ -269,7 +291,7 @@ onMounted(() => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="测评状态">
+        <el-form-item label="测评状态" style="width: 200px;">
           <el-select v-model="queryForm.statusDictItemCode" placeholder="请选择状态" clearable class="w-150">
             <el-option
               v-for="item in statusOptions"
@@ -305,15 +327,17 @@ onMounted(() => {
         <el-table-column label="作者" width="120" align="center">
           <template #default="{ row }">
             <div class="author-info">
-              <el-avatar v-if="row.avatar" :src="row.avatar" :size="32" />
-              <el-avatar v-else :size="32" :icon="Picture" />
-              <span class="author-name">{{ row.nickname }}</span>
+              <!-- <div class="avatar-container">
+                <el-avatar v-if="row.userAvatar" :src="row.userAvatar" :size="32" />
+                <el-avatar v-else :size="32" :icon="Picture" />
+              </div> -->
+              <span class="author-name" :title="row.userNickname">{{ row.userNickname }}</span>
             </div>
           </template>
         </el-table-column>
         <el-table-column label="分类" width="100" align="center">
           <template #default="{ row }">
-            <el-tag effect="plain" type="info">{{ getCategoryName(row.categoryDictItemCode) }}</el-tag>
+            <el-tag effect="plain" type="info">{{ row.categoryDictItemName }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="评分" width="100" align="center">
@@ -327,7 +351,7 @@ onMounted(() => {
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.statusDictItemCode)" effect="light">
-              {{ getStatusName(row.statusDictItemCode) }}
+              {{ row.statusDictItemName }}
             </el-tag>
           </template>
         </el-table-column>
@@ -519,46 +543,21 @@ onMounted(() => {
 <style lang="scss" scoped>
 .gear-review-manage-view {
   padding: 20px;
-  background-color: var(--el-bg-color-page);
-  min-height: calc(100vh - 40px);
-
-  :deep(.el-card) {
-    border-radius: 8px;
-    border: 1px solid var(--el-border-color-light);
-  }
 
   .search-card {
-    margin-bottom: 16px;
-
+    margin-bottom: 20px;
+    
     .search-form {
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
-
+      gap: 10px;
+      
       .el-form-item {
         margin-bottom: 0;
-        margin-right: 0;
-        flex: 0 0 auto;
-
-        .el-input {
-          width: 180px;
-        }
-
-        @media (max-width: 1200px) {
-          margin-bottom: 16px;
-        }
       }
-
-      .w-150 {
-        width: 150px;
-      }
-
+      
       .action-buttons {
-        margin-right: 0;
-        display: flex;
-        gap: 8px;
-        align-items: center;
+        margin-left: auto;
       }
     }
   }
@@ -568,32 +567,13 @@ onMounted(() => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
-
+      margin-bottom: 20px;
+      
       .toolbar-title {
         font-size: 16px;
         font-weight: 600;
         color: var(--el-text-color-primary);
-        position: relative;
-        padding-left: 10px;
-
-        &::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 4px;
-          height: 16px;
-          background-color: var(--el-color-primary);
-          border-radius: 2px;
-        }
       }
-    }
-
-    :deep(.el-table) {
-      border-radius: 4px;
-      overflow: hidden;
     }
 
     .author-info {
@@ -624,9 +604,14 @@ onMounted(() => {
     }
 
     .pagination-wrapper {
-      margin-top: 20px;
       display: flex;
       justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .text-placeholder {
+      color: var(--el-text-color-secondary);
+      font-size: 12px;
     }
   }
 

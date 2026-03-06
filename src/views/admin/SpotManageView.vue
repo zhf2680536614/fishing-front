@@ -6,6 +6,7 @@ import { getSpotPage, getSpotManageById, createSpot, updateSpot, deleteSpot } fr
 import { getDictItems } from '@/api/dict'
 import { uploadSpotImage } from '@/api/file'
 import ImagePreview from '@/components/common/ImagePreview.vue'
+import MapSelector from '@/components/common/MapSelector.vue'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -31,6 +32,7 @@ const uploadingImage = ref(false)
 const previewVisible = ref(false)
 const previewImages = ref([])
 const previewInitialIndex = ref(0)
+const mapSelectorVisible = ref(false)
 
 const editForm = ref({
   id: null,
@@ -133,6 +135,10 @@ const handleEdit = async (row) => {
   isAddMode.value = false
   try {
     const spot = await getSpotManageById(row.id)
+    console.log('后端返回的钓点数据:', spot)
+    console.log('钓点类型选项:', spotTypeOptions.value)
+    console.log('状态选项:', spotStatusOptions.value)
+    console.log('鱼种选项:', fishSpeciesOptions.value)
     editForm.value = {
       id: spot.id,
       name: spot.name,
@@ -178,6 +184,17 @@ const handleAdd = () => {
     statusDictItemCode: spotStatusOptions.value.length > 0 ? spotStatusOptions.value[0].value : ''
   }
   editDialogVisible.value = true
+}
+
+const handleSelectAddress = (address) => {
+  console.log('地图选择的地址数据:', address)
+  editForm.value.longitude = address.longitude
+  editForm.value.latitude = address.latitude
+  editForm.value.province = address.province || ''
+  editForm.value.city = address.city || ''
+  editForm.value.address = address.detailAddress || ''
+  mapSelectorVisible.value = false
+  ElMessage.success('地址已选择')
 }
 
 const handleDelete = (row) => {
@@ -358,16 +375,16 @@ onMounted(() => {
     <el-card class="search-card" shadow="never">
       <el-form :model="queryForm" inline class="search-form" @keyup.enter="handleSearch">
         <el-form-item label="钓点名称">
-          <el-input v-model="queryForm.name" placeholder="请输入钓点名称" clearable />
+          <el-input v-model="queryForm.name" placeholder="请输入" clearable class="w-100" />
         </el-form-item>
         <el-form-item label="省份">
-          <el-input v-model="queryForm.province" placeholder="请输入省份" clearable />
+          <el-input v-model="queryForm.province" placeholder="请输入" clearable class="w-80" />
         </el-form-item>
         <el-form-item label="城市">
-          <el-input v-model="queryForm.city" placeholder="请输入城市" clearable />
+          <el-input v-model="queryForm.city" placeholder="请输入" clearable class="w-80" />
         </el-form-item>
         <el-form-item label="钓点类型">
-          <el-select v-model="queryForm.typeDictItemCode" placeholder="请选择类型" clearable class="w-150">
+          <el-select v-model="queryForm.typeDictItemCode" placeholder="请选择" clearable class="w-140">
             <el-option
               v-for="item in spotTypeOptions"
               :key="item.value"
@@ -377,7 +394,7 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryForm.statusDictItemCode" placeholder="请选择状态" clearable class="w-150">
+          <el-select v-model="queryForm.statusDictItemCode" placeholder="请选择" clearable class="w-140">
             <el-option
               v-for="item in spotStatusOptions"
               :key="item.value"
@@ -415,7 +432,7 @@ onMounted(() => {
         <el-table-column prop="name" label="钓点名称" width="150" show-overflow-tooltip />
         <el-table-column label="类型" width="120" align="center">
           <template #default="{ row }">
-            <el-tag effect="plain" type="info">{{ getSpotTypeName(row.typeDictItemCode) }}</el-tag>
+            <el-tag effect="plain" type="info">{{ row.typeDictItemName }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="位置" min-width="200" show-overflow-tooltip>
@@ -449,7 +466,7 @@ onMounted(() => {
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="getSpotStatusType(row.statusDictItemCode)" effect="light">
-              {{ getSpotStatusName(row.statusDictItemCode) }}
+              {{ row.statusDictItemName }}
             </el-tag>
           </template>
         </el-table-column>
@@ -511,6 +528,12 @@ onMounted(() => {
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-form-item label="位置选择">
+          <el-button type="primary" @click="mapSelectorVisible = true" class="w-full">
+            <el-icon><MapLocation /></el-icon> 在地图上选择位置
+          </el-button>
+        </el-form-item>
 
         <el-row :gutter="20">
           <el-col :span="12">
@@ -635,6 +658,25 @@ onMounted(() => {
       </template>
     </el-dialog>
 
+    <!-- 地图选择器弹窗 -->
+    <el-dialog
+      v-model="mapSelectorVisible"
+      title="选择钓点位置"
+      width="800px"
+      destroy-on-close
+    >
+      <MapSelector
+        :initial-address="{
+          province: editForm.province,
+          city: editForm.city,
+          district: '',
+          detailAddress: editForm.address
+        }"
+        height="400px"
+        @select-address="handleSelectAddress"
+      />
+    </el-dialog>
+
     <!-- 图片预览组件 -->
     <ImagePreview
       v-model:visible="previewVisible"
@@ -648,46 +690,21 @@ onMounted(() => {
 <style lang="scss" scoped>
 .spot-manage-view {
   padding: 20px;
-  background-color: var(--el-bg-color-page);
-  min-height: calc(100vh - 40px);
-
-  :deep(.el-card) {
-    border-radius: 8px;
-    border: 1px solid var(--el-border-color-light);
-  }
 
   .search-card {
-    margin-bottom: 16px;
-
+    margin-bottom: 20px;
+    
     .search-form {
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
-
+      gap: 10px;
+      
       .el-form-item {
         margin-bottom: 0;
-        margin-right: 0;
-        flex: 0 0 auto;
-
-        .el-input {
-          width: 180px;
-        }
-
-        @media (max-width: 1200px) {
-          margin-bottom: 16px;
-        }
       }
-
-      .w-150 {
-        width: 150px;
-      }
-
+      
       .action-buttons {
-        margin-right: 0;
-        display: flex;
-        gap: 8px;
-        align-items: center;
+        margin-left: auto;
       }
     }
   }
@@ -697,32 +714,19 @@ onMounted(() => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
-
+      margin-bottom: 20px;
+      
       .toolbar-title {
         font-size: 16px;
         font-weight: 600;
         color: var(--el-text-color-primary);
-        position: relative;
-        padding-left: 10px;
-
-        &::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 4px;
-          height: 16px;
-          background-color: var(--el-color-primary);
-          border-radius: 2px;
-        }
       }
-    }
-
-    :deep(.el-table) {
-      border-radius: 4px;
-      overflow: hidden;
+      
+      .add-spot-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
     }
 
     .location-info {
@@ -759,9 +763,14 @@ onMounted(() => {
     }
 
     .pagination-wrapper {
-      margin-top: 20px;
       display: flex;
       justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .text-placeholder {
+      color: var(--el-text-color-secondary);
+      font-size: 12px;
     }
   }
 
@@ -863,6 +872,24 @@ onMounted(() => {
 
   .add-spot-btn {
     font-weight: 500;
+  }
+
+  .w-80 {
+    width: 80px;
+  }
+
+  .w-100 {
+    width: 100px;
+  }
+
+  .w-140 {
+    width: 140px;
+  }
+
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
   }
 }
 </style>

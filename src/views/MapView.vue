@@ -124,7 +124,7 @@
               </div>
               <div class="detail-item">
                 <el-icon class="detail-icon"><Collection /></el-icon>
-                <span>{{ selectedSpot.fishInfo || '暂无鱼种信息' }}</span>
+                <span>{{ getFishSpeciesNames(selectedSpot.fishInfoDictItemCodes) }}</span>
               </div>
             </div>
             <div class="ai-recommendation">
@@ -208,6 +208,7 @@ import { getDictItems } from '@/api/dict'
 const searchKeyword = ref('')
 const spotType = ref('all')
 const spotTypes = ref([]) // 钓点类型列表
+const fishSpeciesOptions = ref([]) // 鱼种数据字典
 const loading = ref(false)
 const showSidebar = ref(false)
 const selectedSpot = ref(null)
@@ -315,7 +316,7 @@ const fetchAIAnalysis = (spot) => {
     spot.name,
     spot.type, // 直接传递类型编码
     spot.address,
-    spot.fishInfo,
+    getFishSpeciesNames(spot.fishInfoDictItemCodes),
     (content) => {
       aiAnalysis.value += content
     },
@@ -365,6 +366,15 @@ const getTypeText = (type) => {
     lure: '路亚',
   }
   return typeMap[type] || '未知'
+}
+
+// 获取鱼种名称
+const getFishSpeciesNames = (codes) => {
+  if (!codes || codes.length === 0) return '暂无鱼种信息'
+  return codes.map(code => {
+    const option = fishSpeciesOptions.value.find(opt => opt.itemCode === code)
+    return option ? option.itemName : code
+  }).join('、')
 }
 
 // 初始化地图
@@ -517,6 +527,17 @@ const fetchSpotTypes = async () => {
   }
 }
 
+// 获取鱼种数据字典
+const fetchFishSpecies = async () => {
+  try {
+    const data = await getDictItems('fish_species')
+    fishSpeciesOptions.value = data
+  } catch (error) {
+    console.error('获取鱼种字典失败:', error)
+    fishSpeciesOptions.value = []
+  }
+}
+
 // 添加标记
 const addMarkers = () => {
   if (!map.value) return
@@ -549,6 +570,7 @@ const addMarkers = () => {
 onMounted(() => {
   initMap()
   fetchSpotTypes() // 获取钓点类型
+  fetchFishSpecies() // 获取鱼种数据字典
   document.addEventListener('click', handleClickOutside)
 })
 

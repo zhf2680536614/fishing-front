@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Edit, Delete, View, Picture } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, View, Picture, Upload, Remove } from '@element-plus/icons-vue'
 import { getPostPage, getPostManageById, updatePost, deletePost } from '@/api/post'
 import { getDictItems } from '@/api/dict'
+import { uploadPostImages } from '@/api/file'
 import ImagePreview from '@/components/common/ImagePreview.vue'
 
 const loading = ref(false)
@@ -181,6 +182,34 @@ const handleRemoveImage = (index) => {
   editForm.value.images.splice(index, 1)
 }
 
+const handleUpload = async (file) => {
+  try {
+    const result = await uploadPostImages([file.raw])
+    if (result && result.length > 0) {
+      editForm.value.images.push(result[0])
+      ElMessage.success('图片上传成功')
+    }
+  } catch (error) {
+    console.error('图片上传失败:', error)
+    ElMessage.error('图片上传失败')
+  }
+  return false // 阻止自动上传
+}
+
+const handleUploadBefore = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件！')
+    return false
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过 2MB！')
+    return false
+  }
+  return true
+}
+
 const submitEdit = async () => {
   if (!editFormRef.value) return
 
@@ -249,14 +278,14 @@ const fetchDictOptions = async () => {
   }
 
   try {
-    const statusItems = await getDictItems('post_status')
+    const statusItems = await getDictItems('common_status')
     statusOptions.value = statusItems.map(item => ({
       label: item.itemName,
       value: item.itemCode,
-      type: item.itemCode === 'published' ? 'success' : item.itemCode === 'pending' ? 'warning' : 'danger'
+      type: item.itemCode === 'enabled' ? 'success' : 'danger'
     }))
   } catch (error) {
-    console.error('获取帖子状态字典失败:', error)
+    console.error('获取通用状态字典失败:', error)
   }
 
   try {
@@ -287,6 +316,119 @@ onMounted(() => {
 })
 </script>
 
+<style scoped>
+.author-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-container {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.author-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70px;
+}
+
+.image-list-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.image-item {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  padding: 2px;
+}
+
+.upload-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #fafafa;
+}
+
+.upload-area:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+}
+
+.upload-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.upload-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  transition: all 0.3s ease;
+}
+
+.upload-icon:hover {
+  color: #409eff;
+}
+
+.upload-icon-large {
+  font-size: 24px;
+  margin-bottom: 8px;
+  transition: transform 0.3s ease;
+}
+
+.upload-icon:hover .upload-icon-large {
+  transform: scale(1.2) rotate(10deg);
+}
+
+.upload-text {
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.4;
+}
+</style>
+
 <template>
   <div class="post-manage-view">
     <!-- 顶部搜索卡片 -->
@@ -295,7 +437,7 @@ onMounted(() => {
         <el-form-item label="帖子标题">
           <el-input v-model="queryForm.title" placeholder="请输入帖子标题" clearable />
         </el-form-item>
-        <el-form-item label="帖子类型">
+        <el-form-item label="帖子类型" style="width: 200px;">
           <el-select v-model="queryForm.typeDictItemCode" placeholder="请选择类型" clearable class="w-150">
             <el-option
               v-for="item in typeOptions"
@@ -305,7 +447,7 @@ onMounted(() => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="帖子状态">
+        <el-form-item label="帖子状态" style="width: 200px;">
           <el-select v-model="queryForm.statusDictItemCode" placeholder="请选择状态" clearable class="w-150">
             <el-option
               v-for="item in statusOptions"
@@ -315,7 +457,7 @@ onMounted(() => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="AI审核状态">
+        <el-form-item label="AI审核状态" style="width: 200px;">
           <el-select v-model="queryForm.aiAuditStatusDictItemCode" placeholder="请选择审核状态" clearable class="w-150">
             <el-option
               v-for="item in aiAuditStatusOptions"
@@ -350,20 +492,22 @@ onMounted(() => {
         <el-table-column label="作者" width="120" align="center">
           <template #default="{ row }">
             <div class="author-info">
-              <el-avatar v-if="row.userAvatar" :src="row.userAvatar" :size="32" />
-              <el-avatar v-else :size="32" :icon="Picture" />
-              <span class="author-name">{{ row.userNickname }}</span>
+              <div class="avatar-container">
+                <el-avatar v-if="row.userAvatar" :src="row.userAvatar" :size="32" />
+                <el-avatar v-else :size="32" :icon="Picture" />
+              </div>
+              <span class="author-name" :title="row.userNickname">{{ row.userNickname }}</span>
             </div>
           </template>
         </el-table-column>
         <el-table-column label="类型" width="100" align="center">
           <template #default="{ row }">
-            <el-tag effect="plain" type="info">{{ getTypeName(row.typeDictItemCode) }}</el-tag>
+            <el-tag effect="plain" type="info">{{ row.typeDictItemName }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="鱼种" width="100" align="center">
           <template #default="{ row }">
-            <span v-if="row.fishSpeciesDictItemCode">{{ getFishSpeciesName(row.fishSpeciesDictItemCode) }}</span>
+            <span v-if="row.fishSpeciesDictItemName">{{ row.fishSpeciesDictItemName }}</span>
             <span v-else class="text-gray">-</span>
           </template>
         </el-table-column>
@@ -385,14 +529,14 @@ onMounted(() => {
         <el-table-column label="AI审核" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="getAiAuditStatusType(row.aiAuditStatusDictItemCode)" effect="light">
-              {{ getAiAuditStatusName(row.aiAuditStatusDictItemCode) }}
+              {{ row.aiAuditStatusDictItemName }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.statusDictItemCode)" effect="light">
-              {{ getStatusName(row.statusDictItemCode) }}
+              {{ row.statusDictItemName }}
             </el-tag>
           </template>
         </el-table-column>
@@ -584,6 +728,21 @@ onMounted(() => {
                 <el-icon><Delete /></el-icon>
               </el-button>
             </div>
+            <div class="upload-area">
+              <el-upload
+                class="upload-btn"
+                :auto-upload="false"
+                :on-change="handleUpload"
+                :before-upload="handleUploadBefore"
+                :show-file-list="false"
+                accept="image/*"
+              >
+                <div class="upload-icon">
+                  <el-icon class="upload-icon-large"><Upload /></el-icon>
+                  <span class="upload-text">添加图片</span>
+                </div>
+              </el-upload>
+            </div>
           </div>
         </el-form-item>
       </el-form>
@@ -608,46 +767,21 @@ onMounted(() => {
 <style lang="scss" scoped>
 .post-manage-view {
   padding: 20px;
-  background-color: var(--el-bg-color-page);
-  min-height: calc(100vh - 40px);
-
-  :deep(.el-card) {
-    border-radius: 8px;
-    border: 1px solid var(--el-border-color-light);
-  }
 
   .search-card {
-    margin-bottom: 16px;
-
+    margin-bottom: 20px;
+    
     .search-form {
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
-
+      gap: 10px;
+      
       .el-form-item {
         margin-bottom: 0;
-        margin-right: 0;
-        flex: 0 0 auto;
-
-        .el-input {
-          width: 180px;
-        }
-
-        @media (max-width: 1200px) {
-          margin-bottom: 16px;
-        }
       }
-
-      .w-150 {
-        width: 150px;
-      }
-
+      
       .action-buttons {
-        margin-right: 0;
-        display: flex;
-        gap: 8px;
-        align-items: center;
+        margin-left: auto;
       }
     }
   }
@@ -657,32 +791,13 @@ onMounted(() => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
-
+      margin-bottom: 20px;
+      
       .toolbar-title {
         font-size: 16px;
         font-weight: 600;
         color: var(--el-text-color-primary);
-        position: relative;
-        padding-left: 10px;
-
-        &::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 4px;
-          height: 16px;
-          background-color: var(--el-color-primary);
-          border-radius: 2px;
-        }
       }
-    }
-
-    :deep(.el-table) {
-      border-radius: 4px;
-      overflow: hidden;
     }
 
     .author-info {
@@ -720,9 +835,14 @@ onMounted(() => {
     }
 
     .pagination-wrapper {
-      margin-top: 20px;
       display: flex;
       justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .text-placeholder {
+      color: var(--el-text-color-secondary);
+      font-size: 12px;
     }
   }
 

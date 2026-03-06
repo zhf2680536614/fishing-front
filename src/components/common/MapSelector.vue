@@ -2,18 +2,13 @@
   <div class="map-selector">
     <!-- 搜索框 -->
     <div class="map-search">
-      <el-input 
-        v-model="searchKeyword" 
+      <el-input
+        v-model="searchKeyword"
         placeholder="搜索地址"
-        @keyup.enter="handleSearch"
         style="width: 100%;"
         clearable
-      >
-        <template #append>
-          <el-button @click="handleSearch"><el-icon><Search /></el-icon></el-button>
-        </template>
-      </el-input>
-      
+      />
+
       <!-- 搜索结果列表 -->
       <div class="search-results" v-if="showSearchResults && searchResults.length > 0">
         <div
@@ -41,7 +36,6 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { initAMapSecurity, AMapKey } from '@/api/config'
 import { initAMap } from '@/api/location'
@@ -77,6 +71,7 @@ const mapInstance = ref(null)
 const geocoder = ref(null)
 const mapLoadingPromise = ref(null)
 const mapInitialized = ref(false)
+let searchTimer = null
 
 // 初始化地图
 const initMap = async () => {
@@ -195,17 +190,25 @@ const getAddressByLngLat = (lng, lat) => {
     ElMessage.warning('地图未初始化，无法获取地址信息')
     return
   }
-  
+
   geocoder.value.getAddress([lng, lat], (status, result) => {
     if (status === 'complete' && result.info === 'OK') {
       const addressComponent = result.regeocode.addressComponent
+
+      const city = addressComponent.city || addressComponent.district || ''
+
       const address = {
+        longitude: lng,
+        latitude: lat,
         province: addressComponent.province || '',
-        city: addressComponent.city || '',
+        city: city,
         district: addressComponent.district || '',
         detailAddress: result.regeocode.formattedAddress || ''
       }
-      
+      console.log('逆地理编码结果:', result)
+      console.log('地址组件:', addressComponent)
+      console.log('返回的地址数据:', address)
+
       // 在地图上标记点
       if (mapInstance.value && window.AMap) {
         // 清除之前的标记
@@ -216,7 +219,7 @@ const getAddressByLngLat = (lng, lat) => {
           map: mapInstance.value
         })
       }
-      
+
       // 触发地址选择事件
       emit('select-address', address)
     } else {
@@ -232,15 +235,15 @@ const handleSearch = () => {
     showSearchResults.value = false
     return
   }
-  
+
   if (!geocoder.value) {
     ElMessage.warning('地图未初始化，无法搜索地址')
     return
   }
-  
+
   searchLoading.value = true
   showSearchResults.value = true
-  
+
   geocoder.value.getLocation(searchKeyword.value, (status, result) => {
     searchLoading.value = false
     if (status === 'complete' && result.info === 'OK') {
@@ -253,22 +256,49 @@ const handleSearch = () => {
   })
 }
 
+// 监听搜索关键词变化，自动搜索（带防抖）
+watch(searchKeyword, (newVal) => {
+  // 清除之前的定时器
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+
+  if (!newVal || newVal.trim() === '') {
+    showSearchResults.value = false
+    searchResults.value = []
+    return
+  }
+
+  // 设置新的定时器，500ms 后执行搜索
+  searchTimer = setTimeout(() => {
+    handleSearch()
+  }, 500)
+})
+
 // 选择搜索结果
 const selectSearchResult = (result) => {
   const addressComponent = result.addressComponent
+
+  const city = addressComponent.city || addressComponent.district || ''
+
   const address = {
+    longitude: result.location.lng,
+    latitude: result.location.lat,
     province: addressComponent.province || '',
-    city: addressComponent.city || '',
+    city: city,
     district: addressComponent.district || '',
     detailAddress: result.formattedAddress || ''
   }
-  
+  console.log('搜索结果:', result)
+  console.log('搜索结果地址组件:', addressComponent)
+  console.log('搜索结果返回的地址数据:', address)
+
   // 移动地图到搜索结果位置
   if (mapInstance.value && result.location) {
     const location = result.location
     mapInstance.value.setCenter([location.lng, location.lat])
     mapInstance.value.setZoom(15)
-    
+
     // 清除之前的标记
     if (window.AMap) {
       mapInstance.value.clearMap()
@@ -279,10 +309,10 @@ const selectSearchResult = (result) => {
       })
     }
   }
-  
+
   // 触发地址选择事件
   emit('select-address', address)
-  
+
   // 关闭搜索结果
   showSearchResults.value = false
   searchKeyword.value = ''

@@ -91,3 +91,35 @@ export const uploadImage = (formData) => {
     }
   })
 }
+
+/**
+ * 上传鱼类图片
+ * @param {File} file - 文件对象
+ * @returns {Promise}
+ */
+export const uploadFishImage = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/file/upload/fish', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 批量上传鱼类图片
+ * @param {File[]} files - 文件数组
+ * @returns {Promise}
+ */
+export const uploadFishImages = (files) => {
+  const formData = new FormData()
+  files.forEach(file => {
+    formData.append('files', file)
+  })
+  return request.post('/file/upload/fish/batch', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}

@@ -565,48 +565,21 @@ onMounted(() => {
 <style lang="scss" scoped>
 .user-manage-view {
   padding: 20px;
-  background-color: var(--el-bg-color-page);
-  min-height: calc(100vh - 40px); // 假设外层有导航栏，可根据实际情况调整
-
-  /* 卡片通用圆角和无缝边框 */
-  :deep(.el-card) {
-    border-radius: 8px;
-    border: 1px solid var(--el-border-color-light);
-  }
 
   .search-card {
-    margin-bottom: 16px;
-
+    margin-bottom: 20px;
+    
     .search-form {
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
-
+      gap: 10px;
+      
       .el-form-item {
-        margin-bottom: 0; // 移除默认底部间距，依赖 card 的 padding
-        margin-right: 0;
-        flex: 0 0 auto;
-
-        .el-input {
-          width: 180px; // 缩短输入框长度
-        }
-
-        // 当屏幕较小换行时，保证垂直间距
-        @media (max-width: 1200px) {
-          margin-bottom: 16px;
-        }
+        margin-bottom: 0;
       }
-
-      .w-150 {
-        width: 150px; // 角色和状态选择框宽度
-      }
-
+      
       .action-buttons {
-        margin-right: 0;
-        display: flex;
-        gap: 8px;
-        align-items: center;
+        margin-left: auto;
       }
     }
   }
@@ -616,54 +589,30 @@ onMounted(() => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
-
+      margin-bottom: 20px;
+      
       .toolbar-title {
         font-size: 16px;
         font-weight: 600;
         color: var(--el-text-color-primary);
-        position: relative;
-        padding-left: 10px;
-
-        // 标题左侧的小竖条装饰
-        &::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 4px;
-          height: 16px;
-          background-color: var(--el-color-primary);
-          border-radius: 2px;
-        }
       }
-    }
-
-    /* 优化表格边框体验 */
-    :deep(.el-table) {
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .pagination-container {
-      margin-top: 20px;
-      display: flex;
-      justify-content: center;
       
-      :deep(.el-pagination) {
-        .el-pagination__sizes {
-          display: none; // 隐藏每页展示条数组件
-        }
-        
-        .el-pagination__total {
-          color: var(--el-text-color-secondary);
-        }
-        
-        .el-pagination__jump {
-          color: var(--el-text-color-secondary);
-        }
+      .add-user-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
       }
+    }
+
+    .pagination-wrapper {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .text-placeholder {
+      color: var(--el-text-color-secondary);
+      font-size: 12px;
     }
   }
 

@@ -1,10 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Delete, Edit, Document } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Delete, Edit, Document, Upload, Picture } from '@element-plus/icons-vue'
 import {
   getFishPage, getFishById, createFish, updateFish, deleteFish
 } from '@/api/fish'
+import { uploadFishImage } from '@/api/file'
+import ImagePreview from '@/components/common/ImagePreview.vue'
 
 const loading = ref(false)
 
@@ -32,8 +34,14 @@ const editForm = ref({
   protectionLevel: 0,
   habits: '',
   edibleValue: '',
-  imgUrl: ''
+  images: []
 })
+
+// 图片上传相关
+const uploadingImage = ref(false)
+const previewVisible = ref(false)
+const previewImages = ref([])
+const previewInitialIndex = ref(0)
 
 const editFormRules = {
   name: [
@@ -117,7 +125,7 @@ const handleEdit = async (row) => {
       protectionLevel: fish.protectionLevel,
       habits: fish.habits || '',
       edibleValue: fish.edibleValue || '',
-      imgUrl: fish.imgUrl || ''
+      images: fish.images || []
     }
     editDialogVisible.value = true
   } catch (error) {
@@ -135,7 +143,7 @@ const handleAdd = () => {
     protectionLevel: 0,
     habits: '',
     edibleValue: '',
-    imgUrl: ''
+    images: []
   }
   editDialogVisible.value = true
 }
@@ -162,7 +170,7 @@ const handleDelete = (row) => {
 
 const submitEdit = async () => {
   if (!editFormRef.value) return
-  
+
   await editFormRef.value.validate(async (valid) => {
     if (valid) {
       try {
@@ -173,9 +181,9 @@ const submitEdit = async () => {
           protectionLevel: editForm.value.protectionLevel,
           habits: editForm.value.habits,
           edibleValue: editForm.value.edibleValue,
-          imgUrl: editForm.value.imgUrl
+          images: JSON.stringify(editForm.value.images)
         }
-        
+
         if (isAddMode.value) {
           await createFish(data)
           ElMessage.success('添加成功')
@@ -208,6 +216,64 @@ const getProtectionLevelName = (level) => {
 // 获取保护级别类型
 const getProtectionLevelType = (level) => {
   return level === 1 ? 'warning' : 'success'
+}
+
+// 处理图片上传
+const handleImageUpload = async (file) => {
+  if (!file.raw) return
+
+  const isImage = file.raw.type.startsWith('image/')
+  if (!isImage) {
+    ElMessage.warning('只能上传图片文件')
+    return
+  }
+
+  const isLt10M = file.raw.size / 1024 / 1024 < 10
+  if (!isLt10M) {
+    ElMessage.warning('图片大小不能超过 10MB')
+    return
+  }
+
+  uploadingImage.value = true
+  try {
+    const url = await uploadFishImage(file.raw)
+    if (url) {
+      editForm.value.images.push(url)
+      ElMessage.success('图片上传成功')
+    } else {
+      ElMessage.error('上传失败')
+    }
+  } catch (error) {
+    console.error('上传失败:', error)
+    ElMessage.error('图片上传失败')
+  } finally {
+    uploadingImage.value = false
+  }
+}
+
+// 处理图片移除
+const handleImageRemove = (index) => {
+  ElMessageBox.confirm(
+    '确定要移除这张图片吗？',
+    '移除确认',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    editForm.value.images.splice(index, 1)
+    ElMessage.success('图片已移除')
+  }).catch(() => {})
+}
+
+// 预览图片
+const handleImagePreview = (images, index) => {
+  if (images && images.length > 0) {
+    previewImages.value = images
+    previewInitialIndex.value = index || 0
+    previewVisible.value = true
+  }
 }
 
 // 初始化
@@ -278,15 +344,12 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="imgUrl" label="标准图鉴" width="100" align="center">
+        <el-table-column label="图片" width="100" align="center">
           <template #default="{ row }">
-            <el-image
-              v-if="row.imgUrl"
-              :src="row.imgUrl"
-              :preview-src-list="[row.imgUrl]"
-              fit="cover"
-              style="width: 60px; height: 60px; border-radius: 4px;"
-            />
+            <div v-if="row.images && row.images.length > 0" class="image-preview-trigger" @click="handleImagePreview(row.images, 0)">
+              <el-icon><Picture /></el-icon>
+              <span>{{ row.images.length }}张</span>
+            </div>
             <span v-else class="text-placeholder">暂无图片</span>
           </template>
         </el-table-column>
@@ -362,8 +425,39 @@ onMounted(() => {
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="标准图鉴" prop="imgUrl">
-          <el-input v-model="editForm.imgUrl" placeholder="请输入图片URL" />
+        <el-form-item label="图片">
+          <div class="image-upload-section">
+            <el-upload
+              action="#"
+              :auto-upload="false"
+              :on-change="handleImageUpload"
+              :disabled="uploadingImage"
+              accept="image/*"
+              class="image-uploader"
+              :show-file-list="false"
+            >
+              <div class="upload-trigger">
+                <el-icon class="upload-icon"><Upload /></el-icon>
+                <span>点击上传图片</span>
+                <span class="upload-hint">支持 JPG、PNG 格式，大小不超过 10MB</span>
+              </div>
+            </el-upload>
+
+            <!-- 已上传图片列表 -->
+            <div v-if="editForm.images && editForm.images.length > 0" class="image-list">
+              <div
+                v-for="(image, index) in editForm.images"
+                :key="index"
+                class="image-item"
+              >
+                <img :src="image" :alt="`图片 ${index + 1}`" @click="handleImagePreview(editForm.images, index)" />
+                <div class="image-overlay">
+                  <el-icon class="preview-icon" @click="handleImagePreview(editForm.images, index)"><Picture /></el-icon>
+                  <el-icon class="delete-icon" @click="handleImageRemove(index)"><Delete /></el-icon>
+                </div>
+              </div>
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="生活习性" prop="habits">
           <el-input 
@@ -393,6 +487,14 @@ onMounted(() => {
         </span>
       </template>
     </el-dialog>
+
+    <!-- 图片预览组件 -->
+    <ImagePreview
+      v-model:visible="previewVisible"
+      :images="previewImages"
+      :initial-index="previewInitialIndex"
+      @close="previewVisible = false"
+    />
   </div>
 </template>
 
@@ -448,6 +550,20 @@ onMounted(() => {
       color: var(--el-text-color-secondary);
       font-size: 12px;
     }
+
+    .image-preview-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      color: var(--el-color-primary);
+      font-size: 14px;
+
+      &:hover {
+        opacity: 0.8;
+      }
+    }
   }
 
   .w-100 {
@@ -466,6 +582,101 @@ onMounted(() => {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+  }
+
+  .image-upload-section {
+    .image-uploader {
+      :deep(.el-upload) {
+        width: 100%;
+      }
+    }
+
+    .upload-trigger {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 120px;
+      border: 2px dashed var(--el-border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.3s;
+
+      &:hover {
+        border-color: var(--el-color-primary);
+      }
+
+      .upload-icon {
+        font-size: 28px;
+        color: var(--el-text-color-secondary);
+        margin-bottom: 8px;
+      }
+
+      span {
+        font-size: 14px;
+        color: var(--el-text-color-regular);
+      }
+
+      .upload-hint {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+        margin-top: 4px;
+      }
+    }
+
+    .image-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+
+      .image-item {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .image-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          opacity: 0;
+          transition: opacity 0.3s;
+
+          &:hover {
+            opacity: 1;
+          }
+
+          .preview-icon,
+          .delete-icon {
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+
+            &:hover {
+              transform: scale(1.1);
+            }
+          }
+        }
+      }
+    }
   }
 }
 </style>
